@@ -32,6 +32,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Create backend .dev.vars for CI
+        run: |
+          {
+            echo "MQTT_BROKER_HOST=mqtt"
+            echo "MQTT_BROKER_PORT=1883"
+            echo "MQTT_ADMIN_USERNAME=agrodrone-backend"
+            echo "MQTT_ADMIN_PASSWORD=test-admin-pass"
+            echo "JWT_SECRET=ci-test-secret-not-for-production"
+            echo "VALID_ACCESS_TOKENS=AGRO-ALPHA-TOKEN-1,AGRO-ALPHA-TOKEN-2,AGRO-ALPHA-TOKEN-3"
+            echo "VALID_ADMIN_ACCESS_TOKENS=AGRO-ADMIN-TOKEN-1,AGRO-ADMIN-TOKEN-2"
+          } > AgroDroneBackend/.dev.vars
+
       - name: Run integration tests
         run: |
           docker compose -f compose.integration.yaml up \
