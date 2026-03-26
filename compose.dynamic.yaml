@@ -12,8 +12,12 @@
 ##                      connects as each frontend and verifies routing.
 ##
 ## Run:
-##   docker compose -f compose.dynamic.yaml up --build --abort-on-container-exit
-##   # Exit code mirrors test-runner exit code.
+##   docker compose -f compose.dynamic.yaml up --build -d
+##   docker compose -f compose.dynamic.yaml wait test-runner   # blocks; exit code = test result
+##   docker compose -f compose.dynamic.yaml down -v
+##
+##   NOTE: Do NOT use --abort-on-container-exit. The `setup` service exits with code 0
+##   intentionally; that flag would tear down the network before edge nodes can connect.
 ##
 
 services:

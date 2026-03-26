@@ -90,10 +90,14 @@ jobs:
 
       - name: Run dynamic routing tests
         run: |
-          docker compose -f compose.dynamic.yaml up \
-            --build \
-            --abort-on-container-exit \
-            --exit-code-from test-runner
+          # --abort-on-container-exit is incompatible with service_completed_successfully:
+          # when setup exits (code 0) it triggers teardown before edge nodes can connect.
+          # Instead: run detached, wait for test-runner, capture its exit code.
+          docker compose -f compose.dynamic.yaml up --build -d
+          docker compose -f compose.dynamic.yaml wait test-runner
+          EXIT_CODE=$?
+          docker compose -f compose.dynamic.yaml logs test-runner
+          exit $EXIT_CODE
 
       - name: Dump logs on failure
         if: failure()
