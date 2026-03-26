@@ -1,0 +1,9 @@
+# etc/systemd/system/agrodrone-flightplan-upload.path
+[Unit]
+Description=Trigger for sending the flight plan to the onboard Pi
+
+[Path]
+PathChanged=/home/sr-design/agrodrone-system/flightplans/waypoints.json
+
+[Install]
+WantedBy=multi-user.target

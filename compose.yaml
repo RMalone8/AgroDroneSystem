@@ -1,0 +1,37 @@
+services:
+  frontend:
+    build: 
+      context: ./AgroDroneFrontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./AgroDroneFrontend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - backend
+      - mqtt
+  backend:
+    build:
+      context: ./AgroDroneBackend
+      dockerfile: Dockerfile
+    ports:
+      - "8787:8787"
+    volumes:
+      - ./AgroDroneBackend:/app
+      - /app/node_modules
+      - /app/.wrangler
+    depends_on:
+      - mqtt
+    command: sh -c "npm install && npm run dev -- --ip 0.0.0.0 --var MQTT_BROKER_URL:ws://mqtt:9001"
+  mqtt:
+    image: eclipse-mosquitto:latest
+    volumes:
+      - ./MQTT/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./MQTT/dynamic-security.json:/mosquitto/dynamic-security/dynamic-security.json
+      - ./MQTT/data:/mosquitto/data
+      - ./MQTT/log:/mosquitto/log
+    ports:
+      - "1883:1883"
+      - "9001:9001"

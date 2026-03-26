@@ -1,0 +1,9 @@
+# etc/systemd/system/agrodrone-mosaic.path
+[Unit]
+Description=Trigger for processing the image data and sending it to the cloud
+
+[Path]
+PathChanged=/home/sr-design/agrodrone-system/data/SUCCESS.txt
+
+[Install]
+WantedBy=multi-user.target

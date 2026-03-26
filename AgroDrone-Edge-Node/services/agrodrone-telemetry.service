@@ -1,0 +1,14 @@
+# etc/systemd/system/agrodrone-telemetry.service
+[Unit]
+Description=AgroDrone telemetry sending service
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=sr-design
+ExecStart=/usr/bin/python3 telemetry.py
+WorkingDirectory=/home/sr-design/AgroDrone-Edge-Node/src
+EnvironmentFile=/home/sr-design/AgroDrone-Edge-Node/.env
+
+[Install]
+WantedBy=multi-user.target

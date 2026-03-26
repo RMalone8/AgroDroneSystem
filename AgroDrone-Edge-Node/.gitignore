@@ -1,0 +1,6 @@
+.env
+.onboard.env
+.DS_Store
+__pycache__
+waypoints.json
+ingest/

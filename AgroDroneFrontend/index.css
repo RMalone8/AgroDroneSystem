@@ -1,0 +1,60 @@
+.maplibregl-ctrl-top-left {
+  width: 100%;
+  padding: 4px;
+  display: flex !important; /* Force flexbox */
+  flex-direction: row;     /* Horizontal layout */
+  pointer-events: none;    /* Let clicks pass through the "empty" space */
+  
+}
+
+.mapboxgl-ctrl-group.mapboxgl-ctrl {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+
+  pointer-events: auto;
+  margin-left: auto;
+  margin-right: auto;
+  height: fit-content;
+  /* Adjusting for the width of the search bar to ensure true center */
+  border-radius: 4px;
+  display: flex;
+  background-color: rgb(162, 230, 148, 0.5);
+}
+
+/* Target the main geocoder container */
+.maplibregl-ctrl-geocoder {
+  left: 10px;
+  width: auto; /* Make it wider */
+  max-width: 600px;
+}
+
+/* Make the input text larger */
+.maplibregl-ctrl-geocoder--input {
+  font-size: 18px;
+  height: 45px;
+  caret-color: rgb(1, 52, 23);
+  color: black;
+  padding: 10px 10px !important; /* adjust for the search icon */
+  border: 3px solid rgba(162, 230, 148, 0.25);
+  border-radius: 4px;
+}
+
+.maplibregl-ctrl-geocoder .suggestions {
+  font-size: 16px;
+}
+
+.maplibregl-ctrl-geocoder .suggestions > li > a {
+  padding: 12px; /* Makes each result item "taller" */
+}
+
+.maplibregl-ctrl-geocoder--result-icon {
+  width: 30px !important;  /* Default is usually around 20px */
+  height: 30px !important;
+  margin-right: 15px;      /* Add space so it doesn't crowd the text */
+}
+
+.maplibregl-ctrl-geocoder--icon {
+  width: 10 px;
+  opacity: 0;
+}

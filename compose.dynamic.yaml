@@ -1,0 +1,93 @@
+##
+## Dynamic-registration E2E test environment
+##
+## Flow:
+##   1. mqtt          — Mosquitto starts with only the backend admin client.
+##   2. setup         — Python script provisions 2 device + 2 frontend clients
+##                      via Mosquitto Dynamic Security, then writes
+##                      /shared/credentials.json and exits 0.
+##   3. edge-node-a/b — Start after setup completes, read their credentials
+##                      from /shared and publish telemetry at 1 Hz.
+##   4. test-runner   — Runs pytest after setup + both edge nodes are up;
+##                      connects as each frontend and verifies routing.
+##
+## Run:
+##   docker compose -f compose.dynamic.yaml up --build --abort-on-container-exit
+##   # Exit code mirrors test-runner exit code.
+##
+
+services:
+
+  mqtt:
+    image: eclipse-mosquitto:latest
+    volumes:
+      - ./MQTT/mosquitto.bootstrap.conf:/mosquitto/config/mosquitto.conf
+      - ./MQTT/dynamic-security.bootstrap.json:/mosquitto/dynamic-security/dynamic-security.json
+    ports:
+      - "21883:1883"   # expose on 21883 to avoid collisions with other test envs
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-u", "agrodrone-backend", "-P", "test-admin-pass", "-p", "1883", "-t", "$$SYS/broker/version", "-C", "1", "-W", "3"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  setup:
+    build:
+      context: ./tests/e2e
+    command: ["python", "setup_dynamic.py"]
+    environment:
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+    volumes:
+      - shared:/shared
+    depends_on:
+      mqtt:
+        condition: service_healthy
+
+  edge-node-a:
+    build:
+      context: ./AgroDrone-Edge-Node
+    command: ["python", "src/telemetry_loop.py"]
+    environment:
+      MQTT_HOST:  mqtt
+      MQTT_PORT:  1883
+      NODE_INDEX: "0"
+    volumes:
+      - shared:/shared
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+
+  edge-node-b:
+    build:
+      context: ./AgroDrone-Edge-Node
+    command: ["python", "src/telemetry_loop.py"]
+    environment:
+      MQTT_HOST:  mqtt
+      MQTT_PORT:  1883
+      NODE_INDEX: "1"
+    volumes:
+      - shared:/shared
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+
+  test-runner:
+    build:
+      context: ./tests/e2e
+    command: ["pytest", "-v", "--tb=short", "test_dynamic_routing.py"]
+    environment:
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+    volumes:
+      - shared:/shared
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+      edge-node-a:
+        condition: service_started
+      edge-node-b:
+        condition: service_started
+
+volumes:
+  shared:

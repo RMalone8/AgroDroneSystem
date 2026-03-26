@@ -1,0 +1,27 @@
+{
+    "createdAt":"2026-02-25T01:45:19.568Z",
+    "totalImages": 3,
+    "images": [
+        {
+            "nir_path":"/home/sr-design/agrodrone-system/data/nir0.png",
+            "rgb_path":"/home/sr-design/agrodrone-system/data/rgb0.png",
+            "lng":-71,
+            "lat":42,
+            "timestamp":"2026-02-25T01:45:19.568Z"
+        },
+        {
+            "nir_path":"/home/sr-design/agrodrone-system/data/nir1.png",
+            "rgb_path":"/home/sr-design/agrodrone-system/data/rgb1.png",
+            "lng":-71.3,
+            "lat":42,
+            "timestamp":"2026-02-25T01:46:19.568Z"
+        },
+        {
+            "nir_path":"/home/sr-design/agrodrone-system/data/nir2.png",
+            "rgb_path":"/home/sr-design/agrodrone-system/data/rgb2.png",
+            "lng":-71.3,
+            "lat":42.3,
+            "timestamp":"2026-02-25T01:47:19.568Z"
+        }
+    ]
+}

@@ -1,0 +1,17 @@
+{
+    "voltage_battery": 23.98,
+    "current_battery": 0.88,
+    "battery_remaining": 77,
+    "satellites_visible": 24,
+    "gps_hdop": 0.33,
+    "lat": 42.3894243,
+    "lon": -71.1382523,
+    "alt_msl": 5.64,
+    "alt_rel": 0.562,
+    "heading": 38.8,
+    "vx": 0.02,
+    "vy": 0.06,
+    "vz": 0.22,
+    "timestamp": 1771798711.105927,
+    "base_station_position": [42.3894243, -71.1382523]
+}

@@ -1,0 +1,56 @@
+services:
+
+  mqtt:
+    image: eclipse-mosquitto:latest
+    volumes:
+      - ./MQTT/mosquitto.test.conf:/mosquitto/config/mosquitto.conf
+      - ./MQTT/dynamic-security.test.json:/mosquitto/dynamic-security/dynamic-security.json
+    ports:
+      - "11883:1883"
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-u", "agrodrone-backend", "-P", "test-admin-pass", "-p", "1883", "-t", "$$SYS/broker/version", "-C", "1", "-W", "3"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  edge-node-a:
+    build: ./AgroDrone-Edge-Node
+    command: ["python", "src/flight_plan.py"]
+    environment:
+      MQTT_HOST:    mqtt
+      MQTT_PORT:    1883
+      DEVICE_ID:    test-device-a
+      DEVICE_TOKEN: test-token-a
+      USER_ID:      user-a-id
+      WAYPOINT_PATH: /tmp/waypoints-a.json
+    depends_on:
+      mqtt:
+        condition: service_healthy
+
+  edge-node-b:
+    build: ./AgroDrone-Edge-Node
+    command: ["python", "src/flight_plan.py"]
+    environment:
+      MQTT_HOST:    mqtt
+      MQTT_PORT:    1883
+      DEVICE_ID:    test-device-b
+      DEVICE_TOKEN: test-token-b
+      USER_ID:      user-b-id
+      WAYPOINT_PATH: /tmp/waypoints-b.json
+    depends_on:
+      mqtt:
+        condition: service_healthy
+
+  test-runner:
+    build: ./tests/e2e
+    command: ["pytest", "-v", "--tb=short", "test_multi_tenant.py"]
+    environment:
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+    depends_on:
+      mqtt:
+        condition: service_healthy
+      edge-node-a:
+        condition: service_started
+      edge-node-b:
+        condition: service_started

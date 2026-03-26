@@ -1,0 +1,61 @@
+##
+## Integration test environment — real backend (wrangler dev) + real Mosquitto
+##
+## Tests the complete flow:
+##   register admin → issue client token → register client → MQTT connects →
+##   register edge node → edge node connects → telemetry reaches frontend →
+##   cross-tenant isolation verified
+##
+## Run:
+##   docker compose -f compose.integration.yaml up --build --abort-on-container-exit
+##
+
+services:
+
+  mqtt:
+    image: eclipse-mosquitto:latest
+    volumes:
+      - ./MQTT/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      # Start with admin-only credentials; backend provisions users at runtime
+      - ./MQTT/dynamic-security.json:/mosquitto/dynamic-security/dynamic-security.json
+      - mqtt-data:/mosquitto/data
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-u", "agrodrone-backend", "-P", "test-admin-pass", "-p", "1883", "-t", "$$SYS/broker/version", "-C", "1", "-W", "3"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ./AgroDroneBackend
+      dockerfile: Dockerfile
+    # Mount source so wrangler dev picks up .dev.vars and src/
+    volumes:
+      - ./AgroDroneBackend:/app
+      - /app/node_modules
+      - /app/.wrangler          # anonymous volume keeps miniflare KV in-container
+    command: sh -c "npm install && npm run dev -- --ip 0.0.0.0"
+    ports:
+      - "8788:8787"             # expose on 8788 to avoid clash with dev stack on 8787
+    depends_on:
+      mqtt:
+        condition: service_healthy
+    # The backend reads MQTT_BROKER_HOST / MQTT_BROKER_PORT from .dev.vars.
+    # Those values point to 'mqtt:1883' which resolves correctly inside the compose network.
+
+  test-runner:
+    build:
+      context: ./tests/e2e
+    command: ["pytest", "-v", "--tb=short", "test_integration.py"]
+    environment:
+      BACKEND_URL: http://backend:8787
+      MQTT_HOST:   mqtt
+      MQTT_PORT:   1883
+    depends_on:
+      mqtt:
+        condition: service_healthy
+      backend:
+        condition: service_started   # backend readiness is handled by wait_for_backend()
+
+volumes:
+  mqtt-data:

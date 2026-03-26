@@ -1,0 +1,158 @@
+{
+	"changeIndex":	23,
+	"defaultACLAccess":	{
+		"publishClientSend":	false,
+		"publishClientReceive":	true,
+		"subscribe":	false,
+		"unsubscribe":	true
+	},
+	"clients":	[{
+			"username":	"agrodrone-backend",
+			"textname":	"Dynsec admin user",
+			"roles":	[{
+					"rolename":	"admin"
+				}],
+			"encoded_password":	"$7$1000$vTN31mBwG9kPaNEnIHpo6NRZDm9qmxd+7tvhJXVkQEVHuvY3lqBGOm7T6SDSAYTCFv7nSJUtTh40o2lP8r9yZQ==$B/Fhd+kspTW0TO3Fge3xOzG0Xfld5uqkrgKJuuIla6r7+pO9un6cFLyFRH/9bFJsAcF9WhFL7odFtLrxA2C20A=="
+		}, {
+			"username":	"device-test-device-a",
+			"roles":	[{
+					"rolename":	"device-test-device-a"
+				}],
+			"encoded_password":	"$7$1000$dCOLiMiajhpEoUF8dIBLNHBAesbRb154mt7Y7MlA8RC3P2pmoFRPTa7EQN6GDq4H1LdEupU+aGLxVWBT5XKItw==$Vu/pqks9OjFTUW8drSVcMuDFgFbAgap5RXyGw88/Whs8NdkKeVs0xkAwg6LfUTHCyIbG/Sn9F97tBM7m5SWr/A=="
+		}, {
+			"username":	"device-test-device-b",
+			"roles":	[{
+					"rolename":	"device-test-device-b"
+				}],
+			"encoded_password":	"$7$1000$3VonUtdT9jkgTjubMnJL/HpSlo10xuI3zUhWX3h3/3XYc5PJQcNtHj/2116Vh8gF88P5TUGHENBDg/gx7gZpmA==$oxqlEFiWacehvPBXWVoY7oIA73OGVbXxVrkeFqzxrtjKdYO0zaom2ikUW/dPZJ/eKj26P/5epeXdjwi2xofSmg=="
+		}, {
+			"username":	"user-a-id",
+			"roles":	[{
+					"rolename":	"frontend-user-a-id"
+				}],
+			"encoded_password":	"$7$1000$pk7YvINKbBgjamvFObKO9yHU1dZFH2UKEhbIYe9wr1FLuVbXCxLA7O72EwEI/3Z7A6AHq5/0AH+KcNnBxyQXRg==$7Fxp5sIXS9yvQElPEH9hbs1ef9yZ1hUfryg7lI1J+ji5AXk+56hE/XGE7OHv3twpdzS6PBtNkTeTo2Q0EQ/GiA=="
+		}, {
+			"username":	"user-b-id",
+			"roles":	[{
+					"rolename":	"frontend-user-b-id"
+				}],
+			"encoded_password":	"$7$1000$6LJq3jVCoSVV7obGL/vK1WmFRcfWXftx0Pfn8VcPeBUT67czfCivXCQCT+Kf5aSYxHmrxeQPh512j/XDiMZsPQ==$aNsHiyaSE+qc50GXV6R/YsFbRYtZEHYObpuxBJfyCyvYOiKHMiLayOXG+1gC2R06DpD8JzchaXGzVOgBV55E4Q=="
+		}],
+	"groups":	[],
+	"roles":	[{
+			"rolename":	"admin",
+			"allowwildcardsubs":	true,
+			"acls":	[{
+					"acltype":	"publishClientSend",
+					"topic":	"$CONTROL/dynamic-security/#",
+					"priority":	0,
+					"allow":	true
+				}, {
+					"acltype":	"publishClientSend",
+					"topic":	"#",
+					"priority":	0,
+					"allow":	true
+				}, {
+					"acltype":	"publishClientReceive",
+					"topic":	"$CONTROL/dynamic-security/#",
+					"priority":	0,
+					"allow":	true
+				}, {
+					"acltype":	"publishClientReceive",
+					"topic":	"$SYS/#",
+					"priority":	0,
+					"allow":	true
+				}, {
+					"acltype":	"publishClientReceive",
+					"topic":	"#",
+					"priority":	0,
+					"allow":	true
+				}, {
+					"acltype":	"subscribePattern",
+					"topic":	"$CONTROL/dynamic-security/#",
+					"priority":	0,
+					"allow":	true
+				}, {
+					"acltype":	"subscribePattern",
+					"topic":	"$SYS/#",
+					"priority":	0,
+					"allow":	true
+				}, {
+					"acltype":	"subscribePattern",
+					"topic":	"#",
+					"priority":	0,
+					"allow":	true
+				}, {
+					"acltype":	"unsubscribePattern",
+					"topic":	"#",
+					"priority":	0,
+					"allow":	true
+				}]
+		}, {
+			"rolename":	"device-test-device-a",
+			"allowwildcardsubs":	true,
+			"acls":	[{
+					"acltype":	"publishClientSend",
+					"topic":	"user-a-id/telemetry",
+					"priority":	0,
+					"allow":	true
+				}, {
+					"acltype":	"subscribePattern",
+					"topic":	"user-a-id/flightplan",
+					"priority":	0,
+					"allow":	true
+				}, {
+					"acltype":	"subscribePattern",
+					"topic":	"user-a-id/emergency",
+					"priority":	0,
+					"allow":	true
+				}]
+		}, {
+			"rolename":	"device-test-device-b",
+			"allowwildcardsubs":	true,
+			"acls":	[{
+					"acltype":	"publishClientSend",
+					"topic":	"user-b-id/telemetry",
+					"priority":	0,
+					"allow":	true
+				}, {
+					"acltype":	"subscribePattern",
+					"topic":	"user-b-id/flightplan",
+					"priority":	0,
+					"allow":	true
+				}, {
+					"acltype":	"subscribePattern",
+					"topic":	"user-b-id/emergency",
+					"priority":	0,
+					"allow":	true
+				}]
+		}, {
+			"rolename":	"frontend-user-a-id",
+			"allowwildcardsubs":	true,
+			"acls":	[{
+					"acltype":	"publishClientSend",
+					"topic":	"user-a-id/emergency",
+					"priority":	0,
+					"allow":	true
+				}, {
+					"acltype":	"subscribePattern",
+					"topic":	"user-a-id/telemetry",
+					"priority":	0,
+					"allow":	true
+				}]
+		}, {
+			"rolename":	"frontend-user-b-id",
+			"allowwildcardsubs":	true,
+			"acls":	[{
+					"acltype":	"publishClientSend",
+					"topic":	"user-b-id/emergency",
+					"priority":	0,
+					"allow":	true
+				}, {
+					"acltype":	"subscribePattern",
+					"topic":	"user-b-id/telemetry",
+					"priority":	0,
+					"allow":	true
+				}]
+		}]
+}

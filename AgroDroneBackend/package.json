@@ -1,0 +1,17 @@
+{
+	"name": "cloud-to-pi",
+	"version": "0.0.0",
+	"proxy": "http://localhost:5173",
+	"private": true,
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev",
+		"test": "vitest"
+	},
+	"devDependencies": {
+		"@cloudflare/vitest-pool-workers": "^0.13.3",
+		"vitest": "^4.1.0",
+		"wrangler": "^4.61.0"
+	}
+}
