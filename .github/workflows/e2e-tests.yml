@@ -1,0 +1,92 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "AgroDroneBackend/**"
+      - "AgroDrone-Edge-Node/**"
+      - "MQTT/**"
+      - "tests/e2e/**"
+      - "compose.integration.yaml"
+      - "compose.test.yaml"
+      - "compose.dynamic.yaml"
+      - ".github/workflows/e2e-tests.yml"
+  pull_request:
+    paths:
+      - "AgroDroneBackend/**"
+      - "AgroDrone-Edge-Node/**"
+      - "MQTT/**"
+      - "tests/e2e/**"
+      - "compose.integration.yaml"
+      - "compose.test.yaml"
+      - "compose.dynamic.yaml"
+      - ".github/workflows/e2e-tests.yml"
+
+jobs:
+
+  integration:
+    name: Integration tests (full flow)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run integration tests
+        run: |
+          docker compose -f compose.integration.yaml up \
+            --build \
+            --abort-on-container-exit \
+            --exit-code-from test-runner
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f compose.integration.yaml logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f compose.integration.yaml down -v
+
+  multi-tenant:
+    name: Multi-tenant ACL tests (pre-seeded)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run multi-tenant tests
+        run: |
+          docker compose -f compose.test.yaml up \
+            --build \
+            --abort-on-container-exit \
+            --exit-code-from test-runner
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f compose.test.yaml logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f compose.test.yaml down -v
+
+  dynamic-routing:
+    name: Dynamic routing tests (runtime provisioning)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run dynamic routing tests
+        run: |
+          docker compose -f compose.dynamic.yaml up \
+            --build \
+            --abort-on-container-exit \
+            --exit-code-from test-runner
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f compose.dynamic.yaml logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f compose.dynamic.yaml down -v
