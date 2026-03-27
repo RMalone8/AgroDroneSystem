@@ -6,8 +6,8 @@ After=network-online.target # connect to the Pi target
 [Service]
 Type=simple
 User=sr-design
-WorkingDirectory=/home/sr-design/AgroDrone-Edge-Node/src
-EnvironmentFile=/home/sr-design/AgroDrone-Edge-Node/.onboard.env
+WorkingDirectory=/home/sr-design/AgroDroneSystem/AgroDrone-Edge-Node/src
+EnvironmentFile=/home/sr-design/AgroDroneSystem/AgroDrone-Edge-Node/.onboard.env
 ExecStart=/usr/bin/sh flightplan_upload.sh
 Restart=on-failure
 RestartSec=10

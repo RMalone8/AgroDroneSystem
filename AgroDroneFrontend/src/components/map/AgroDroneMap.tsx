@@ -1,7 +1,7 @@
 import { Map, Marker, Popup, MapRef } from '@vis.gl/react-maplibre';
 import { DrawControl } from './DrawControl';
 import GeocoderControl from './Geocoder';
-import { ICON, DRONE_ICON, drawProps, dronePinStyle, pinStyle } from '../../constants/mapStyles';
+import { ICON, DRONE_ICON, drawProps, dronePinStyle, pinStyle, dimPinStyle } from '../../constants/mapStyles';
 import { useState, useRef, useCallback } from 'react';
 import { DroneTelemetry } from '../../constants/types';
 
@@ -70,22 +70,28 @@ export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStation
         </button>
       )}
 
-      {/* Base Station Marker */}
-      {droneData.baseStationPos && droneData.baseStationPos.length >= 2 ? (
-        <Marker
-          longitude={droneData.baseStationPos[1]}
-          latitude={droneData.baseStationPos[0]}
-          anchor="bottom"
-          onClick={(e) => {
-            e.originalEvent.stopPropagation();
-            setBaseStationPopup(true);
-          }}
-        >
-          <svg height={20} viewBox="0 0 24 24" style={pinStyle}>
-            <path d={ICON} />
-          </svg>
-        </Marker>
-      ) : null}
+      {/* Base Station Marker — dim (stored) until live telemetry arrives */}
+      {(() => {
+        const livePos = droneData.baseStationPos?.length === 2 ? droneData.baseStationPos : null;
+        const storedPos = !livePos && initialBaseStationPos ? initialBaseStationPos : null;
+        const displayPos = livePos ?? storedPos;
+        if (!displayPos) return null;
+        return (
+          <Marker
+            longitude={displayPos[1]}
+            latitude={displayPos[0]}
+            anchor="bottom"
+            onClick={(e) => {
+              e.originalEvent.stopPropagation();
+              setBaseStationPopup(true);
+            }}
+          >
+            <svg height={20} viewBox="0 0 24 24" style={livePos ? pinStyle : dimPinStyle}>
+              <path d={ICON} />
+            </svg>
+          </Marker>
+        );
+      })()}
 
       {Number(droneData.droneLat) && Number(droneData.droneLng) ? (
         <Marker
@@ -101,16 +107,40 @@ export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStation
       ) : null}
 
       {/* Base Station Popup */}
-      {baseStationPopup && (
-        <Popup
-          anchor="top"
-          longitude={droneData.baseStationPos?.[1] ?? 0}
-          latitude={droneData.baseStationPos?.[0] ?? 0}
-          onClose={() => setBaseStationPopup(false)}
-        >
-          <div className="p-1 font-sans text-sm font-semibold">Base Station</div>
-        </Popup>
-      )}
+      {baseStationPopup && (() => {
+        const popupPos = droneData.baseStationPos ?? initialBaseStationPos;
+        if (!popupPos) return null;
+        const isLive = !!droneData.baseStationPos;
+        return (
+          <Popup
+            anchor="top"
+            longitude={popupPos[1]}
+            latitude={popupPos[0]}
+            onClose={() => setBaseStationPopup(false)}
+            maxWidth="220px"
+          >
+            <div className="px-4 pt-3 pb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm font-semibold text-gray-900">Base Station</span>
+                {isLive
+                  ? <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">live</span>
+                  : <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">last known</span>
+                }
+              </div>
+              <div className="border-t border-gray-100 pt-2 space-y-1">
+                <div className="flex justify-between gap-4">
+                  <span className="text-xs text-gray-400">Lat</span>
+                  <span className="text-xs font-mono text-gray-700">{popupPos[0].toFixed(5)}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-xs text-gray-400">Lng</span>
+                  <span className="text-xs font-mono text-gray-700">{popupPos[1].toFixed(5)}</span>
+                </div>
+              </div>
+            </div>
+          </Popup>
+        );
+      })()}
     </Map>
   );
 }

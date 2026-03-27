@@ -3,7 +3,7 @@
 Description=Trigger for sending the flight plan to the onboard Pi
 
 [Path]
-PathChanged=/home/sr-design/agrodrone-system/flightplans/waypoints.json
+PathChanged=/home/sr-design/system/flightplans/waypoints.json
 
 [Install]
 WantedBy=multi-user.target

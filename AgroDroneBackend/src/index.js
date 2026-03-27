@@ -168,27 +168,35 @@ export default {
                     .map(b => b.toString(16).padStart(2, '0')).join('');
 
                 if (env.MQTT_BROKER_HOST && role === 'client') {
-                    await publishDynsecCommand(
-                        env.MQTT_BROKER_HOST, env.MQTT_BROKER_PORT ?? 1883,
-                        env.MQTT_ADMIN_USERNAME, env.MQTT_ADMIN_PASSWORD,
-                        [
-                            {
-                                command: "createRole",
-                                rolename: `frontend-${userId}`,
-                                acls: [
-                                    { acltype: "subscribePattern",  topic: `${userId}/telemetry`,  allow: true },
-                                    { acltype: "subscribePattern",  topic: `${userId}/flightplan`, allow: true },
-                                    { acltype: "publishClientSend", topic: `${userId}/emergency`,  allow: true },
-                                ],
-                            },
-                            {
-                                command: "createClient",
-                                username: userId,
-                                password: mqttToken,
-                                roles: [{ rolename: `frontend-${userId}` }],
-                            },
-                        ],
-                    ).catch(e => console.error("Dynsec register setup failed:", e.message));
+                    try {
+                        await publishDynsecCommand(
+                            env.MQTT_BROKER_HOST, env.MQTT_BROKER_PORT ?? 1883,
+                            env.MQTT_ADMIN_USERNAME, env.MQTT_ADMIN_PASSWORD,
+                            [
+                                {
+                                    command: "createRole",
+                                    rolename: `frontend-${userId}`,
+                                    acls: [
+                                        { acltype: "subscribePattern",  topic: `${userId}/telemetry`,  allow: true },
+                                        { acltype: "subscribePattern",  topic: `${userId}/flightplan`, allow: true },
+                                        { acltype: "publishClientSend", topic: `${userId}/emergency`,  allow: true },
+                                    ],
+                                },
+                                {
+                                    command: "createClient",
+                                    username: userId,
+                                    password: mqttToken,
+                                    roles: [{ rolename: `frontend-${userId}` }],
+                                },
+                            ],
+                        );
+                    } catch (e) {
+                        console.error("Dynsec register setup failed:", e.message);
+                        return Response.json(
+                            { error: "MQTT broker provisioning failed", detail: e.message },
+                            { status: 502, headers: corsHeaders },
+                        );
+                    }
                 }
 
                 return Response.json({ token, userId, role, mqttToken }, { headers: corsHeaders });
@@ -253,7 +261,7 @@ export default {
                             },
                             { command: "setClientPassword", username: uid, password: mqttToken },
                         ],
-                    ).catch(e => console.error("Dynsec login update failed:", e.message));
+                    );
                 }
 
                 return Response.json({ token, userId: user.userId, role, mqttToken }, { headers: corsHeaders });
@@ -301,29 +309,38 @@ export default {
                 const deviceId = crypto.randomUUID();
                 const deviceToken = await createDeviceToken(env.DEVICE_TOKENS_KV, { deviceId, userId: targetUserId });
 
-                // Register the device credentials in Mosquitto Dynamic Security
+                // Register the device credentials in Mosquitto Dynamic Security.
+                // If this fails the device cannot connect to the broker — treat as a hard error.
                 if (env.MQTT_BROKER_HOST) {
-                    await publishDynsecCommand(
-                        env.MQTT_BROKER_HOST, env.MQTT_BROKER_PORT ?? 1883,
-                        env.MQTT_ADMIN_USERNAME, env.MQTT_ADMIN_PASSWORD,
-                        [
-                            {
-                                command: "createRole",
-                                rolename: `device-${deviceId}`,
-                                acls: [
-                                    { acltype: "publishClientSend", topic: `${targetUserId}/telemetry`,  allow: true },
-                                    { acltype: "subscribePattern",  topic: `${targetUserId}/flightplan`, allow: true },
-                                    { acltype: "subscribePattern",  topic: `${targetUserId}/emergency`,  allow: true },
-                                ],
-                            },
-                            {
-                                command: "createClient",
-                                username: `device-${deviceId}`,
-                                password: deviceToken,
-                                roles: [{ rolename: `device-${deviceId}` }],
-                            },
-                        ],
-                    ).catch(e => console.error("Dynsec device register failed:", e.message));
+                    try {
+                        await publishDynsecCommand(
+                            env.MQTT_BROKER_HOST, env.MQTT_BROKER_PORT ?? 1883,
+                            env.MQTT_ADMIN_USERNAME, env.MQTT_ADMIN_PASSWORD,
+                            [
+                                {
+                                    command: "createRole",
+                                    rolename: `device-${deviceId}`,
+                                    acls: [
+                                        { acltype: "publishClientSend", topic: `${targetUserId}/telemetry`,  allow: true },
+                                        { acltype: "subscribePattern",  topic: `${targetUserId}/flightplan`, allow: true },
+                                        { acltype: "subscribePattern",  topic: `${targetUserId}/emergency`,  allow: true },
+                                    ],
+                                },
+                                {
+                                    command: "createClient",
+                                    username: `device-${deviceId}`,
+                                    password: deviceToken,
+                                    roles: [{ rolename: `device-${deviceId}` }],
+                                },
+                            ],
+                        );
+                    } catch (e) {
+                        console.error("Dynsec device register failed:", e.message);
+                        return Response.json(
+                            { error: "MQTT broker provisioning failed — device credentials not created", detail: e.message },
+                            { status: 502, headers: corsHeaders },
+                        );
+                    }
                 }
 
                 // Return token only once — it is never retrievable again

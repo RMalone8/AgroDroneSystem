@@ -19,6 +19,14 @@ export const pinStyle = {
   stroke: 'none'
 };
 
+/** Stored position loaded from the backend — not yet confirmed live by telemetry. */
+export const dimPinStyle = {
+  cursor: 'pointer',
+  fill: '#b07070',
+  stroke: 'none',
+  opacity: 0.55,
+};
+
 export const dronePinStyle = {
   cursor: 'pointer',
   fill: '#2563eb',

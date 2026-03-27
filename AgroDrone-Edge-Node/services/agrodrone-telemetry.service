@@ -7,8 +7,8 @@ After=network-online.target
 Type=oneshot
 User=sr-design
 ExecStart=/usr/bin/python3 telemetry.py
-WorkingDirectory=/home/sr-design/AgroDrone-Edge-Node/src
-EnvironmentFile=/home/sr-design/AgroDrone-Edge-Node/.env
+WorkingDirectory=/home/sr-design/AgroDroneSystem/AgroDrone-Edge-Node/src
+EnvironmentFile=/home/sr-design/AgroDroneSystem/AgroDrone-Edge-Node/.env
 
 [Install]
 WantedBy=multi-user.target

@@ -58,3 +58,33 @@
   width: 10 px;
   opacity: 0;
 }
+
+/* ── Base Station Popup ─────────────────────────────────────────────────── */
+.maplibregl-popup-content {
+  padding: 0 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.12), 0 2px 4px -2px rgb(0 0 0 / 0.08) !important;
+  border: 1px solid #e5e7eb !important;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-width: 170px;
+}
+
+.maplibregl-popup-close-button {
+  padding: 2px 8px 0 !important;
+  font-size: 18px !important;
+  line-height: 1.4 !important;
+  color: #9ca3af !important;
+  top: 4px !important;
+  right: 4px !important;
+  border-radius: 6px !important;
+}
+
+.maplibregl-popup-close-button:hover {
+  background-color: #f3f4f6 !important;
+  color: #374151 !important;
+}
+
+.maplibregl-popup-tip {
+  border-top-color: #e5e7eb !important;
+}
