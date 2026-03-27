@@ -8,9 +8,11 @@ Type=simple
 User=sr-design
 WorkingDirectory=/home/sr-design/AgroDroneSystem/AgroDrone-Edge-Node/src
 EnvironmentFile=/home/sr-design/AgroDroneSystem/AgroDrone-Edge-Node/.onboard.env
-ExecStart=/usr/bin/sh flightplan_upload.sh
+ExecStartPre=/usr/bin/sh ./onboard_connect.sh
+ExecStart=/usr/bin/sh ./flightplan_upload.sh
 Restart=on-failure
 RestartSec=10
+TimeoutStartSec=1800
 
 [Install]
 WantedBy=multi-user.target
