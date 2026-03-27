@@ -119,10 +119,14 @@ export default {
     async fetch(request, env) {
         const url = new URL(request.url);
 
+        const requestOrigin = request.headers.get("Origin") ?? "";
+        const allowedOrigins = (env.ALLOWED_ORIGINS ?? "http://localhost:5173,http://localhost:5174").split(",");
+        const allowedOrigin = allowedOrigins.includes(requestOrigin) ? requestOrigin : allowedOrigins[0];
         const corsHeaders = {
-            "Access-Control-Allow-Origin": "http://localhost:5173",
+            "Access-Control-Allow-Origin": allowedOrigin,
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS, DELETE, PUT",
             "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Device-Id",
+            "Vary": "Origin",
         };
 
         if (request.method === "OPTIONS") {

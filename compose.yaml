@@ -1,10 +1,23 @@
 services:
-  frontend:
+  frontend-1:
     build: 
       context: ./AgroDroneFrontend
       dockerfile: Dockerfile
     ports:
       - "5173:5173"
+    volumes:
+      - ./AgroDroneFrontend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - backend
+      - mqtt
+  frontend-2:
+    build: 
+      context: ./AgroDroneFrontend
+      dockerfile: Dockerfile
+    ports:
+      - "5174:5173"
     volumes:
       - ./AgroDroneFrontend:/app
       - /app/node_modules

@@ -8,7 +8,7 @@ Type=simple
 User=sr-design
 WorkingDirectory=/home/sr-design/AgroDroneSystem/AgroDrone-Edge-Node/src
 EnvironmentFile=/home/sr-design/AgroDroneSystem/AgroDrone-Edge-Node/.env
-ExecStart=/usr/bin/python3 mosaic.py
+ExecStart=/home/sr-design/AgroDroneSystem/AgroDrone-Edge-Node/venv/bin/python mosaic.py
 Restart=on-failure
 RestartSec=10
 

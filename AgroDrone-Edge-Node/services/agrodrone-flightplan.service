@@ -9,7 +9,7 @@ Type=simple
 Restart=always
 RestartSec=5
 User=sr-design
-ExecStart=/usr/bin/python3 flight_plan.py
+ExecStart=/home/sr-design/AgroDroneSystem/AgroDrone-Edge-Node/venv/bin/python flight_plan.py
 WorkingDirectory=/home/sr-design/AgroDroneSystem/AgroDrone-Edge-Node/src
 EnvironmentFile=/home/sr-design/AgroDroneSystem/AgroDrone-Edge-Node/.env
 
