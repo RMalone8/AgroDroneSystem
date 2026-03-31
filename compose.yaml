@@ -1,5 +1,6 @@
 services:
   frontend-1:
+    container_name: frontend-1
     build: 
       context: ./AgroDroneFrontend
       dockerfile: Dockerfile
@@ -13,6 +14,7 @@ services:
       - backend
       - mqtt
   frontend-2:
+    container_name: frontend-2
     build: 
       context: ./AgroDroneFrontend
       dockerfile: Dockerfile

@@ -1,7 +1,8 @@
 # etc/systemd/system/agrodrone-flightplan-upload.service
 [Unit]
 Description=Sends mission to the onboard Pi to be uploaded
-After=network-online.target # connect to the Pi target
+# connect to the Pi target
+After=network-online.target
 
 [Service]
 Type=simple

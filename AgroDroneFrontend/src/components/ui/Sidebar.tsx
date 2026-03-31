@@ -100,7 +100,7 @@ export function Sidebar({
                   </div>
                   <div>
                     <span className="text-gray-500">Altitude</span>
-                    <div className="font-semibold">{telemetry.altitude ?? "---"} ft</div>
+                    <div className="font-semibold">{telemetry.altitude ?? "---"} m</div>
                   </div>
                 </div>
               </div>

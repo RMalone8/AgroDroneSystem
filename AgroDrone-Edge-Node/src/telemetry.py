@@ -1,19 +1,22 @@
 import json
+import time
 import threading
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
+from pymavlink import mavutil
 import paho.mqtt.client as mqtt
 import gpsd
 
 load_dotenv()
 
-MQTT_HOST   = os.getenv("MQTT_HOST", "localhost")
-MQTT_PORT   = int(os.getenv("MQTT_PORT", 1883))
-DEVICE_ID   = os.getenv("DEVICE_ID")
+DEVICE_NAME  = os.getenv("RADIO_DEVICE", "/dev/ttyUSB0")
+BAUD_RATE    = int(os.getenv("RADIO_BAUD", 57600))
+MQTT_HOST    = os.getenv("MQTT_HOST", "localhost")
+MQTT_PORT    = int(os.getenv("MQTT_PORT", 1883))
+DEVICE_ID    = os.getenv("DEVICE_ID")
 DEVICE_TOKEN = os.getenv("DEVICE_TOKEN")
-USER_ID     = os.getenv("USER_ID")
-TOPIC       = f"{USER_ID}/telemetry"
-TELEMETRY_PATH = os.getenv("TELEMETRY_PATH")
+USER_ID      = os.getenv("USER_ID")
+TOPIC        = f"{USER_ID}/telemetry"
 
 RC_MESSAGES = {
     1: "incorrect protocol version",
@@ -24,36 +27,18 @@ RC_MESSAGES = {
 }
 
 def get_gps_position():
-    """Return [lat, lng] from gpsd, or None if unavailable / no fix."""
+    """Return [lat, lng] from gpsd, or None if no fix or daemon unreachable."""
     try:
         gpsd.connect()
         packet = gpsd.get_current()
-        # mode 2 = 2D fix, mode 3 = 3D fix
         if packet.mode < 2:
-            print("Warning: No GPS fix yet — base_station_position not updated")
             return None
         return [round(packet.lat, 7), round(packet.lon, 7)]
-    except Exception as e:
-        print(f"Warning: Could not read GPS position — {e}")
+    except Exception:
         return None
 
-def main():
-    if not DEVICE_ID or not DEVICE_TOKEN or not USER_ID:
-        print("Error: DEVICE_ID, DEVICE_TOKEN, and USER_ID must be set in .env")
-        return
-
-    try:
-        with open(TELEMETRY_PATH, "r") as f:
-            telemetry = json.load(f)
-    except Exception as e:
-        print(f"Error Opening Telemetry File at {TELEMETRY_PATH}: ", e)
-        return
-
-    pos = get_gps_position()
-    if pos:
-        telemetry["base_station_position"] = pos
-        print(f"GPS fix: {pos[0]}, {pos[1]}")
-
+def connect_mqtt():
+    """Connect to the broker and return the client. Exits on auth failure."""
     connected = threading.Event()
     connect_rc = [None]
 
@@ -61,33 +46,125 @@ def main():
         connect_rc[0] = rc
         connected.set()
 
+    def on_disconnect(client, userdata, rc):
+        if rc != 0:
+            print(f"MQTT disconnected unexpectedly (rc={rc}), will reconnect...")
+
     client = mqtt.Client(client_id=DEVICE_ID)
     client.username_pw_set(username=f"device-{DEVICE_ID}", password=DEVICE_TOKEN)
     client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
+    client.reconnect_delay_set(min_delay=1, max_delay=30)
 
-    try:
-        client.connect(MQTT_HOST, MQTT_PORT, keepalive=10)
-        client.loop_start()
+    print(f"Connecting to MQTT broker at {MQTT_HOST}:{MQTT_PORT}...")
+    client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
+    client.loop_start()
 
-        if not connected.wait(timeout=10):
-            client.loop_stop()
-            print("Error: MQTT connection timed out")
-            return
-
-        if connect_rc[0] != 0:
-            client.loop_stop()
-            reason = RC_MESSAGES.get(connect_rc[0], f"code {connect_rc[0]}")
-            print(f"Error: MQTT connection refused — {reason}")
-            return
-
-        result = client.publish(TOPIC, json.dumps(telemetry))
-        result.wait_for_publish()
-        client.disconnect()
+    if not connected.wait(timeout=10):
         client.loop_stop()
-        print(f"Telemetry published to {MQTT_HOST}:{MQTT_PORT} on topic '{TOPIC}'")
+        raise RuntimeError("MQTT connection timed out")
 
+    if connect_rc[0] != 0:
+        client.loop_stop()
+        reason = RC_MESSAGES.get(connect_rc[0], f"code {connect_rc[0]}")
+        raise RuntimeError(f"MQTT connection refused — {reason}")
+
+    print("MQTT connected.")
+    return client
+
+def main():
+    if not DEVICE_ID or not DEVICE_TOKEN or not USER_ID:
+        print("Error: DEVICE_ID, DEVICE_TOKEN, and USER_ID must be set in .env")
+        return
+
+    mqtt_client = connect_mqtt()
+
+    print(f"Connecting to radio on {DEVICE_NAME} at {BAUD_RATE} baud...")
+    try:
+        connection = mavutil.mavlink_connection(DEVICE_NAME, baud=BAUD_RATE)
+        connection.wait_heartbeat()
+        print("Heartbeat detected — streaming telemetry...")
     except Exception as e:
-        print("Error Publishing Telemetry to MQTT: ", e)
+        print(f"Error connecting to radio: {e}")
+        mqtt_client.loop_stop()
+        return
 
-if __name__ == '__main__':
+    data = {
+        "voltage_battery":   0.0,
+        "current_battery":   0.0,
+        "battery_remaining": 0,
+        "satellites_visible": 0,
+        "gps_hdop":          99.9,
+        "lat":               0.0,
+        "lon":               0.0,
+        "alt_msl":           0.0,
+        "alt_rel":           0.0,
+        "heading":           0.0,
+        "vx":                0.0,
+        "vy":                0.0,
+        "vz":                0.0,
+        "timestamp":         0,
+    }
+
+    changed_since_publish = False
+    last_publish = time.time()
+    last_gps_check = 0.0
+    base_station_pos = None
+
+    while True:
+        msg = connection.recv_match(blocking=False)
+
+        if msg:
+            msg_type = msg.get_type()
+
+            if msg_type == 'SYS_STATUS':
+                data["voltage_battery"]   = msg.voltage_battery / 1000.0
+                data["current_battery"]   = msg.current_battery / 100.0
+                data["battery_remaining"] = msg.battery_remaining
+
+            elif msg_type == 'GPS_RAW_INT':
+                data["satellites_visible"] = msg.satellites_visible
+                data["gps_hdop"]           = msg.eph / 100.0
+
+            elif msg_type == 'GLOBAL_POSITION_INT':
+                data["lat"]     = msg.lat / 1e7
+                data["lon"]     = msg.lon / 1e7
+                data["alt_msl"] = msg.alt / 1000.0
+                data["alt_rel"] = msg.relative_alt / 1000.0
+                data["heading"] = msg.hdg / 100.0
+                data["vx"]      = msg.vx / 100.0
+                data["vy"]      = msg.vy / 100.0
+                data["vz"]      = msg.vz / 100.0
+
+            changed_since_publish = True
+
+        # Refresh GPS position every 30 seconds
+        now = time.time()
+        if now - last_gps_check > 30:
+            pos = get_gps_position()
+            if pos:
+                base_station_pos = pos
+            last_gps_check = now
+
+        # Publish at 5 Hz when data has changed
+        if now - last_publish > 0.2 and changed_since_publish:
+            data["timestamp"] = now
+            payload = dict(data)
+            if base_station_pos:
+                payload["base_station_position"] = base_station_pos
+
+            mqtt_client.publish(TOPIC, json.dumps(payload))
+            last_publish = now
+            changed_since_publish = False
+
+            print(
+                f"{data['voltage_battery']:.1f}V | "
+                f"{data['satellites_visible']} sats | "
+                f"{data['alt_rel']:.1f}m alt",
+                end='\r'
+            )
+
+        time.sleep(0.001)
+
+if __name__ == "__main__":
     main()

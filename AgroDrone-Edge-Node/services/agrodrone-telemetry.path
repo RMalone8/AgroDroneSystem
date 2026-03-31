@@ -1,9 +1,0 @@
-# etc/systemd/system/agrodrone-telemetry.path
-[Unit]
-Description=Trigger for sending telemetry from Pi to Cloud
-
-[Path]
-PathChanged=/home/sr-design/system/telemetry.json
-
-[Install]
-WantedBy=multi-user.target
