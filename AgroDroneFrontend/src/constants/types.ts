@@ -9,15 +9,16 @@ export interface MissionMeta {
 }
 
 export interface DroneTelemetry {
-    battery?: string;
-    altitude?: string;
-    baseStationPos?: [number, number];
-    hdop?: string;
-    satellitesVisible?: string;
-    droneLat: string;
-    droneLng: string;
-    heading?: string;
-    velocity?: [string, string, string];
+    battery?: number | null;
+    altMsl?: number | null;
+    altRel?: number | null;
+    baseStationPos?: [number | null, number | null];
+    hdop?: number | null;
+    satellitesVisible?: number | null;
+    droneLat: number | null;
+    droneLng: number | null;
+    heading?: number | null;
+    velocity?: [number | null, number | null, number | null];
     imageURL?: string;
   }
   

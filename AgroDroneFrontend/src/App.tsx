@@ -42,6 +42,11 @@ function AppContent() {
   const [modalVertices, setModalVertices] = useState<{ lat: number; lng: number }[] | null>(null);
   const [savedBaseStationPos, setSavedBaseStationPos] = useState<[number, number] | null>(null);
   const hasPersistedBaseStation = useRef(false);
+  const [activeMissionId, setActiveMissionId] = useState<string | null>(null);
+  const [waypoints, setWaypoints] = useState<{ order: number; lat: number; lng: number }[]>([]);
+  const [visitedOrders, setVisitedOrders] = useState<Set<number>>(new Set());
+  const wasFlyingRef = useRef(false);
+  const airborneWaypointFetchedRef = useRef(false);
 
   const { userId, mqttToken } = useAuth();
   const droneData = useDroneData({ userId, mqttToken });
@@ -69,6 +74,95 @@ function AppContent() {
       body: JSON.stringify({ lat: droneData.baseStationPos[0], lng: droneData.baseStationPos[1] }),
     }).catch(() => { /* non-critical */ });
   }, [droneData.baseStationPos]);
+
+  // Poll for waypoints after a mission is activated (edge node may take ~1s to POST them).
+  useEffect(() => {
+    if (!activeMissionId) return;
+    let attempts = 0;
+    const id = setInterval(async () => {
+      attempts++;
+      try {
+        const r = await authFetch(`/flightplan/${activeMissionId}/waypoints`);
+        const data = await r.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setWaypoints(data);
+          clearInterval(id);
+        }
+      } catch { /* ignore */ }
+      if (attempts >= 10) clearInterval(id);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [activeMissionId]);
+
+  // Clear waypoints when the drone lands (alt_rel drops back to 0 after flying).
+  useEffect(() => {
+    const alt = droneData.altRel ?? 0;
+    if (alt > 0) {
+      wasFlyingRef.current = true;
+    } else if (wasFlyingRef.current && alt === 0) {
+      wasFlyingRef.current = false;
+      airborneWaypointFetchedRef.current = false;
+      setWaypoints([]);
+      setVisitedOrders(new Set());
+      setActiveMissionId(null);
+    }
+  }, [droneData.altRel]);
+
+  // Fallback: if drone is airborne but no waypoints loaded (e.g. page refresh mid-flight),
+  // fetch them using the backend's current active mission.
+  useEffect(() => {
+    const alt = droneData.altRel ?? 0;
+    if (alt <= 0 || waypoints.length > 0 || airborneWaypointFetchedRef.current) return;
+    airborneWaypointFetchedRef.current = true;
+
+    const fetchForMission = (missionId: string) =>
+      authFetch(`/flightplan/${missionId}/waypoints`)
+        .then(r => r.json())
+        .then((data: any) => {
+          if (Array.isArray(data) && data.length > 0) {
+            setWaypoints(data);
+          } else {
+            airborneWaypointFetchedRef.current = false;
+          }
+        })
+        .catch(() => { airborneWaypointFetchedRef.current = false; });
+
+    const missionId = activeMissionId ?? (flightplanData?.metadata?.currentFlightPlan as string | null);
+    if (missionId) {
+      fetchForMission(missionId);
+    } else {
+      // No mission cached locally — ask the backend for the active one
+      authFetch('/flightplan/all')
+        .then(r => r.json())
+        .then((d: any) => {
+          const id = d?.metadata?.currentFlightPlan as string | null;
+          if (id) fetchForMission(id);
+          else airborneWaypointFetchedRef.current = false;
+        })
+        .catch(() => { airborneWaypointFetchedRef.current = false; });
+    }
+  }, [droneData.altRel]);
+
+  // Mark waypoints as visited only when the drone is hovering on top of one (vx≈0, vy≈0).
+  useEffect(() => {
+    if (!waypoints.length || (droneData.altRel ?? 0) <= 0) return;
+    const vx = Number(droneData.velocity?.[0] ?? 1);
+    const vy = Number(droneData.velocity?.[1] ?? 1);
+    if (Math.abs(vx) > 0.1 || Math.abs(vy) > 0.1) return;
+    const dLat = Number(droneData.droneLat);
+    const dLng = Number(droneData.droneLng);
+    if (!dLat || !dLng) return;
+    setVisitedOrders(prev => {
+      const next = new Set(prev);
+      waypoints.forEach(wp => {
+        if (prev.has(wp.order)) return;
+        const dNorth = (wp.lat - dLat) * 111111;
+        const dEast  = (wp.lng - dLng) * 111111 * Math.cos(dLat * Math.PI / 180);
+        if (Math.sqrt(dNorth ** 2 + dEast ** 2) < 15) next.add(wp.order);
+      });
+      return next;
+    });
+  }, [droneData.velocity]);
 
   const handleTabChange = async (tab: TabType) => {
     setActiveTab(tab);
@@ -124,6 +218,9 @@ function AppContent() {
           onActivateFlightPlan={async (missionId: string) => {
             const ok = await activateFlightPlan(missionId);
             if (ok) {
+              setActiveMissionId(missionId);
+              setWaypoints([]);
+              setVisitedOrders(new Set());
               setFlightplanData((prev: any) => ({
                 ...prev,
                 metadata: { ...prev.metadata, currentFlightPlan: missionId }
@@ -146,6 +243,8 @@ function AppContent() {
               droneData={droneData}
               drawRef={drawRef}
               initialBaseStationPos={savedBaseStationPos}
+              waypoints={waypoints}
+              visitedOrders={visitedOrders}
             />
           </div>
         </div>

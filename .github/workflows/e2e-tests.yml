@@ -7,20 +7,14 @@ on:
       - "AgroDroneBackend/**"
       - "AgroDrone-Edge-Node/**"
       - "MQTT/**"
-      - "tests/e2e/**"
-      - "compose.integration.yaml"
-      - "compose.test.yaml"
-      - "compose.dynamic.yaml"
+      - "tests/**"
       - ".github/workflows/e2e-tests.yml"
   pull_request:
     paths:
       - "AgroDroneBackend/**"
       - "AgroDrone-Edge-Node/**"
       - "MQTT/**"
-      - "tests/e2e/**"
-      - "compose.integration.yaml"
-      - "compose.test.yaml"
-      - "compose.dynamic.yaml"
+      - "tests/**"
       - ".github/workflows/e2e-tests.yml"
 
 jobs:
@@ -46,18 +40,18 @@ jobs:
 
       - name: Run integration tests
         run: |
-          docker compose -f compose.integration.yaml up \
+          docker compose -f tests/compose.integration.yaml up \
             --build \
             --abort-on-container-exit \
             --exit-code-from test-runner
 
       - name: Dump logs on failure
         if: failure()
-        run: docker compose -f compose.integration.yaml logs
+        run: docker compose -f tests/compose.integration.yaml logs
 
       - name: Tear down
         if: always()
-        run: docker compose -f compose.integration.yaml down -v
+        run: docker compose -f tests/compose.integration.yaml down -v
 
   multi-tenant:
     name: Multi-tenant ACL tests (pre-seeded)
@@ -68,18 +62,18 @@ jobs:
 
       - name: Run multi-tenant tests
         run: |
-          docker compose -f compose.test.yaml up \
+          docker compose -f tests/compose.test.yaml up \
             --build \
             --abort-on-container-exit \
             --exit-code-from test-runner
 
       - name: Dump logs on failure
         if: failure()
-        run: docker compose -f compose.test.yaml logs
+        run: docker compose -f tests/compose.test.yaml logs
 
       - name: Tear down
         if: always()
-        run: docker compose -f compose.test.yaml down -v
+        run: docker compose -f tests/compose.test.yaml down -v
 
   dynamic-routing:
     name: Dynamic routing tests (runtime provisioning)
@@ -93,16 +87,16 @@ jobs:
           # --abort-on-container-exit is incompatible with service_completed_successfully:
           # when setup exits (code 0) it triggers teardown before edge nodes can connect.
           # Instead: run detached, wait for test-runner, capture its exit code.
-          docker compose -f compose.dynamic.yaml up --build -d
-          docker compose -f compose.dynamic.yaml wait test-runner
+          docker compose -f tests/compose.dynamic.yaml up --build -d
+          docker compose -f tests/compose.dynamic.yaml wait test-runner
           EXIT_CODE=$?
-          docker compose -f compose.dynamic.yaml logs test-runner
+          docker compose -f tests/compose.dynamic.yaml logs test-runner
           exit $EXIT_CODE
 
       - name: Dump logs on failure
         if: failure()
-        run: docker compose -f compose.dynamic.yaml logs
+        run: docker compose -f tests/compose.dynamic.yaml logs
 
       - name: Tear down
         if: always()
-        run: docker compose -f compose.dynamic.yaml down -v
+        run: docker compose -f tests/compose.dynamic.yaml down -v

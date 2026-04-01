@@ -11,19 +11,21 @@ interface MapViewerProps {
   drawRef: React.MutableRefObject<any>;
   /** Last-known base station position loaded from the backend on app mount. */
   initialBaseStationPos?: [number, number] | null;
+  waypoints?: { order: number; lat: number; lng: number }[];
+  visitedOrders?: Set<number>;
 }
 
 const DEFAULT_LAT = 42.35316;
 const DEFAULT_LNG = -71.11777;
 const DEFAULT_ZOOM = 12;
 
-export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStationPos }: MapViewerProps) {
+export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStationPos, waypoints, visitedOrders }: MapViewerProps) {
   const [baseStationPopup, setBaseStationPopup] = useState<boolean>(false);
   const mapRef = useRef<MapRef>(null);
 
   const flyToBaseStation = useCallback(() => {
     const pos = droneData.baseStationPos ?? initialBaseStationPos;
-    if (!pos) return;
+    if (!pos || pos[0] == null || pos[1] == null) return;
     mapRef.current?.flyTo({ center: [pos[1], pos[0]], zoom: 16, duration: 1200 });
   }, [droneData.baseStationPos, initialBaseStationPos]);
 
@@ -75,7 +77,7 @@ export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStation
         const livePos = droneData.baseStationPos?.length === 2 ? droneData.baseStationPos : null;
         const storedPos = !livePos && initialBaseStationPos ? initialBaseStationPos : null;
         const displayPos = livePos ?? storedPos;
-        if (!displayPos) return null;
+        if (!displayPos || displayPos[0] == null || displayPos[1] == null) return null;
         return (
           <Marker
             longitude={displayPos[1]}
@@ -106,10 +108,24 @@ export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStation
         </Marker>
       ) : null}
 
+      {/* Waypoint markers — visible while drone is airborne */}
+      {(droneData.altRel ?? 0) > 5 && waypoints?.map(wp => (
+        <Marker key={wp.order} longitude={wp.lng} latitude={wp.lat} anchor="center">
+          <div style={{
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            backgroundColor: visitedOrders?.has(wp.order) ? '#22c55e' : '#9ca3af',
+            border: '1.5px solid white',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+          }} />
+        </Marker>
+      ))}
+
       {/* Base Station Popup */}
       {baseStationPopup && (() => {
         const popupPos = droneData.baseStationPos ?? initialBaseStationPos;
-        if (!popupPos) return null;
+        if (!popupPos || popupPos[0] == null || popupPos[1] == null) return null;
         const isLive = !!droneData.baseStationPos;
         return (
           <Popup

@@ -44,7 +44,7 @@ services:
     image: eclipse-mosquitto:latest
     volumes:
       - ./MQTT/mosquitto.conf:/mosquitto/config/mosquitto.conf
-      - ./MQTT/dynamic-security.json:/mosquitto/dynamic-security/dynamic-security.json
+      - ./MQTT/dynsec:/mosquitto/dynamic-security
       - ./MQTT/data:/mosquitto/data
       - ./MQTT/log:/mosquitto/log
     ports:

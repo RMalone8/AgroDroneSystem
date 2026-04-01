@@ -8,16 +8,17 @@ interface DroneDataOptions {
 }
 
 export function useDroneData({ userId, mqttToken }: DroneDataOptions) {
-  const [battery, setBattery] = useState("...");
-  const [altitude, setAltitude] = useState("...");
+  const [battery, setBattery] = useState<number | null>(null);
+  const [altMsl, setAltMsl] = useState<number | null>(null);;
+  const [altRel, setAltRel] = useState<number | null>(null);
   const [baseStationPos, setBaseStationPos] = useState<[number, number] | undefined>(undefined);
   const [imageURL, setImageURL] = useState("");
-  const [hdop, setHdop] = useState("");
-  const [satellitesVisible, setSatellitesVisible] = useState("");
-  const [droneLat, setDroneLat] = useState("1");
-  const [droneLng, setDroneLng] = useState("1");
-  const [velocity, setVelocity] = useState<[string, string, string]>(["", "", ""]);
-  const [heading, setHeading] = useState("");
+  const [hdop, setHdop] = useState<number | null>(null);
+  const [satellitesVisible, setSatellitesVisible] = useState<number | null>(null);
+  const [droneLat, setDroneLat] = useState<number | null>(null);
+  const [droneLng, setDroneLng] = useState<number | null>(null);
+  const [velocity, setVelocity] = useState<[number | null, number | null, number | null]>([null, null, null]);
+  const [heading, setHeading] = useState<number | null>(null);
 
   // Keep a stable ref to the current client so the cleanup can always find it.
   const clientRef = useRef<ReturnType<typeof mqtt.connect> | null>(null);
@@ -44,7 +45,8 @@ export function useDroneData({ userId, mqttToken }: DroneDataOptions) {
         const telemetry = JSON.parse(payload.toString('utf8'));
         console.log('PAYLOAD:', telemetry);
         setBattery(telemetry.battery_remaining);
-        setAltitude(telemetry.alt_msl);
+        setAltMsl(telemetry.alt_msl);
+        setAltRel(telemetry.alt_rel ?? 0);
         setBaseStationPos(telemetry.base_station_position);
         setHdop(telemetry.gps_hdop);
         setHeading(telemetry.heading);
@@ -76,7 +78,7 @@ export function useDroneData({ userId, mqttToken }: DroneDataOptions) {
   }, [userId, mqttToken]);
 
   return {
-    battery, altitude, baseStationPos, imageURL,
+    battery, altMsl, altRel, baseStationPos, imageURL,
     hdop, heading, satellitesVisible, droneLat, droneLng, velocity,
   } as DroneTelemetry;
 }

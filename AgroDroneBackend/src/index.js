@@ -387,6 +387,25 @@ export default {
         // ── Flight plan routes ────────────────────────────────────────────────
 
         if (url.pathname.startsWith("/flightplan")) {
+
+            if (url.pathname === "/flightplan/waypoints" && request.method === "POST") {
+                if (userRole !== 'device') {
+                    return new Response("Forbidden", { status: 403, headers: corsHeaders });
+                }
+                const { missionId, waypoints } = await request.json();
+                if (!missionId || !Array.isArray(waypoints)) {
+                    return new Response("Missing fields", { status: 400, headers: corsHeaders });
+                }
+                await storage.waypointsUpload(env, userId, missionId, waypoints);
+                return new Response("Waypoints saved", { headers: corsHeaders });
+            }
+
+            if (url.pathname.endsWith("/waypoints") && request.method === "GET") {
+                const missionId = url.pathname.split("/")[2];
+                const waypoints = await storage.waypointsRetrieval(env, userId, missionId);
+                return Response.json(waypoints, { headers: corsHeaders });
+            }
+
             if (request.method === "POST") {
                 const flightplan = await request.json();
                 console.log(flightplan);

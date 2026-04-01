@@ -99,8 +99,8 @@ export function Sidebar({
                     <div className="font-semibold">{telemetry.battery ?? "---"}%</div>
                   </div>
                   <div>
-                    <span className="text-gray-500">Altitude</span>
-                    <div className="font-semibold">{telemetry.altitude ?? "---"} m</div>
+                    <span className="text-gray-500">Relative Altitude</span>
+                    <div className="font-semibold">{telemetry.altRel?.toFixed(2) ?? "---"} m</div>
                   </div>
                 </div>
               </div>
@@ -118,12 +118,12 @@ export function Sidebar({
             <div className="mb-6">
               <h3 className="text-lg font-semibold mb-3">System Telemetry</h3>
               <div className="space-y-2 text-sm">
-                <TelemetryRow label="Satellites Visible" value={telemetry.satellitesVisible ?? "---"} color="text-green-600" />
-                <TelemetryRow label="GPS HDOP" value={telemetry.hdop ?? "---"} color="text-green-600" />
-                <TelemetryRow label="Heading" value={telemetry.heading ?? "---"} />
-                <TelemetryRow label="VX" value={telemetry.velocity?.[0] ?? "---"} />
-                <TelemetryRow label="VY" value={telemetry.velocity?.[1] ?? "---"} />
-                <TelemetryRow label="VZ" value={telemetry.velocity?.[2] ?? "---"} />
+                <TelemetryRow label="Satellites Visible" value={telemetry.satellitesVisible?.toString() ?? "---"} color="text-green-600" />
+                <TelemetryRow label="GPS HDOP" value={telemetry.hdop?.toFixed(3) ?? "---"} color="text-green-600" />
+                <TelemetryRow label="Heading" value={telemetry.heading?.toFixed(2) ?? "---"} />
+                <TelemetryRow label="VX" value={telemetry.velocity?.[0]?.toFixed(2) ?? "---"} />
+                <TelemetryRow label="VY" value={telemetry.velocity?.[1]?.toFixed(2) ?? "---"} />
+                <TelemetryRow label="VZ" value={telemetry.velocity?.[2]?.toFixed(2) ?? "---"} />
               </div>
             </div>
           </>

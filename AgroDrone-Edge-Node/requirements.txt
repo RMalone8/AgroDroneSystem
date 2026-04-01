@@ -1,4 +1,12 @@
-paho-mqtt
-python-dotenv
-requests
-gpsd
+certifi==2026.2.25
+charset-normalizer==3.4.6
+fastcrc==0.3.5
+gpsd==3.27.5.0.175
+gpsd-py3==0.3.0
+idna==3.11
+lxml==6.0.2
+paho-mqtt==2.1.0
+pymavlink==2.4.49
+python-dotenv==1.2.2
+requests==2.33.1
+urllib3==2.6.3

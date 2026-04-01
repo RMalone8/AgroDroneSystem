@@ -193,7 +193,7 @@ export default {
         // getting metadata file
         const metadata_path = `data/${user_id}/fp/.metadata`;
         const meta_obj = await env.BUCKET.get(metadata_path);
-        
+
         if (!meta_obj) // we don't have any flight plans
         {
             console.error("No Flight Plans to Retrieve");
@@ -209,8 +209,22 @@ export default {
         const responses = await Promise.all(promises);
         const flightplans = await Promise.all(responses.filter(res => res !== null).map(res => res.json()));
 
-        return {"metadata": metadata, 
+        return {"metadata": metadata,
             "flightplans": flightplans};
+    },
+
+    async waypointsUpload(env, user_id, mission_id, waypoints) {
+        const path = `data/${user_id}/fp/${mission_id}_waypoints.json`;
+        await env.BUCKET.put(path, JSON.stringify(waypoints), {
+            httpMetadata: { contentType: "application/json" }
+        });
+    },
+
+    async waypointsRetrieval(env, user_id, mission_id) {
+        const path = `data/${user_id}/fp/${mission_id}_waypoints.json`;
+        const obj = await env.BUCKET.get(path);
+        if (!obj) return null;
+        return await obj.json();
     },
 
 }
