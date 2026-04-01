@@ -50,12 +50,28 @@ services:
 
   edge-node-a:
     build:
-      context: ../AgroDrone-Edge-Node
-    command: ["python", "src/telemetry_loop.py"]
+      context: ./e2e
+    command:
+      - python
+      - -c
+      - |
+        import json, os, time, threading
+        import paho.mqtt.client as mqtt
+        creds = json.load(open('/shared/credentials.json'))[0]
+        uid, did, dtok = creds['userId'], creds['deviceId'], creds['deviceToken']
+        c = mqtt.Client(client_id=did)
+        c.username_pw_set(f'device-{did}', dtok)
+        ev = threading.Event()
+        c.on_connect = lambda *a: ev.set() if a[3] == 0 else None
+        c.connect(os.getenv('MQTT_HOST', 'localhost'), int(os.getenv('MQTT_PORT', 1883)), 60)
+        c.loop_start()
+        ev.wait(15)
+        while True:
+            c.publish(f'{uid}/telemetry', json.dumps({'battery_remaining': '85', 'lat': '42.35', 'lon': '-71.11', 'alt_msl': '10.5', 'timestamp': time.time()}))
+            time.sleep(1)
     environment:
-      MQTT_HOST:  mqtt
-      MQTT_PORT:  1883
-      NODE_INDEX: "0"
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
     volumes:
       - shared:/shared
     depends_on:
@@ -64,12 +80,28 @@ services:
 
   edge-node-b:
     build:
-      context: ../AgroDrone-Edge-Node
-    command: ["python", "src/telemetry_loop.py"]
+      context: ./e2e
+    command:
+      - python
+      - -c
+      - |
+        import json, os, time, threading
+        import paho.mqtt.client as mqtt
+        creds = json.load(open('/shared/credentials.json'))[1]
+        uid, did, dtok = creds['userId'], creds['deviceId'], creds['deviceToken']
+        c = mqtt.Client(client_id=did)
+        c.username_pw_set(f'device-{did}', dtok)
+        ev = threading.Event()
+        c.on_connect = lambda *a: ev.set() if a[3] == 0 else None
+        c.connect(os.getenv('MQTT_HOST', 'localhost'), int(os.getenv('MQTT_PORT', 1883)), 60)
+        c.loop_start()
+        ev.wait(15)
+        while True:
+            c.publish(f'{uid}/telemetry', json.dumps({'battery_remaining': '85', 'lat': '42.35', 'lon': '-71.11', 'alt_msl': '10.5', 'timestamp': time.time()}))
+            time.sleep(1)
     environment:
-      MQTT_HOST:  mqtt
-      MQTT_PORT:  1883
-      NODE_INDEX: "1"
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
     volumes:
       - shared:/shared
     depends_on:
