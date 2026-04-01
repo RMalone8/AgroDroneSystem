@@ -1,0 +1,91 @@
+##
+## Demo mode — full stack with a simulated edge node.
+##
+## The `setup` service auto-provisions demo accounts via the real backend,
+## then the `edge-node` streams simulated telemetry and executes flight plans.
+##
+## Run:
+##   docker compose -f compose.demo.yaml up --build
+##
+## Log in at http://localhost:5173 with:
+##   Email:    demo-client@agrodrone.com
+##   Password: DemoClient1!
+##
+## Draw a flight plan near Boston Common → Save Mission → Activate
+## Watch the drone fly through the waypoints and return.
+##
+## To stop and reset:
+##   docker compose -f compose.demo.yaml down -v
+##   (-v removes the demo_shared volume so the next run starts clean)
+##
+
+services:
+
+  mqtt:
+    image: eclipse-mosquitto:latest
+    volumes:
+      - ./MQTT/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./MQTT/dynsec:/mosquitto/dynamic-security
+      - ./MQTT/data:/mosquitto/data
+      - ./MQTT/log:/mosquitto/log
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+
+  backend:
+    build:
+      context: ./AgroDroneBackend
+      dockerfile: Dockerfile
+    ports:
+      - "8787:8787"
+    volumes:
+      - ./AgroDroneBackend:/app
+      - /app/node_modules
+      - /app/.wrangler
+    depends_on:
+      - mqtt
+    command: sh -c "npm install && npm run dev -- --ip 0.0.0.0 --var MQTT_BROKER_URL:ws://mqtt:9001"
+
+  frontend-1:
+    container_name: frontend-1
+    build:
+      context: ./AgroDroneFrontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./AgroDroneFrontend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - backend
+      - mqtt
+
+  setup:
+    build:
+      context: ./tests/e2e
+    command: python setup_demo.py
+    environment:
+      BACKEND_URL: "http://backend:8787"
+    volumes:
+      - demo_shared:/shared
+    depends_on:
+      - backend
+
+  edge-node:
+    build:
+      context: ./AgroDrone-Edge-Node
+      dockerfile: Dockerfile
+    command: python src/demo/demo_node.py
+    environment:
+      MQTT_HOST: "mqtt"
+      MQTT_PORT: "1883"
+      BACKEND_URL: "http://backend:8787"
+    volumes:
+      - demo_shared:/shared
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+
+volumes:
+  demo_shared:

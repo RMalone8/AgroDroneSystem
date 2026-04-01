@@ -1,0 +1,58 @@
+##
+## Integration test environment — real backend (wrangler dev) + real Mosquitto
+##
+## Tests the complete flow:
+##   register admin → issue client token → register client → MQTT connects →
+##   register edge node → edge node connects → telemetry reaches frontend →
+##   cross-tenant isolation verified
+##
+## Run:
+##   docker compose -f tests/compose.integration.yaml up --build --abort-on-container-exit --exit-code-from test-runner
+##
+
+services:
+
+  mqtt:
+    image: eclipse-mosquitto:latest
+    volumes:
+      - ../MQTT/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      # Start with admin-only credentials; backend provisions users at runtime
+      - ../MQTT/dynsec:/mosquitto/dynamic-security
+      - mqtt-data:/mosquitto/data
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-u", "agrodrone-backend", "-P", "test-admin-pass", "-p", "1883", "-t", "$$SYS/broker/version", "-C", "1", "-W", "3"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ../AgroDroneBackend
+      dockerfile: Dockerfile
+    volumes:
+      - ../AgroDroneBackend:/app
+      - /app/node_modules
+      - /app/.wrangler
+    command: sh -c "npm install && npm run dev -- --ip 0.0.0.0"
+    ports:
+      - "8788:8787"
+    depends_on:
+      mqtt:
+        condition: service_healthy
+
+  test-runner:
+    build:
+      context: ./e2e
+    command: ["pytest", "-v", "--tb=short", "test_integration.py"]
+    environment:
+      BACKEND_URL: http://backend:8787
+      MQTT_HOST:   mqtt
+      MQTT_PORT:   1883
+    depends_on:
+      mqtt:
+        condition: service_healthy
+      backend:
+        condition: service_started
+
+volumes:
+  mqtt-data:
