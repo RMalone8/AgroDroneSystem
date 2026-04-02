@@ -246,4 +246,43 @@ export default {
         });
     },
 
+    async getAllSensorData(env, userId) {
+        const globalMetaObj = await env.BUCKET.get(`data/${userId}/fp/.metadata`);
+        if (!globalMetaObj) return { flightPlans: [] };
+        const globalMeta = await globalMetaObj.json();
+
+        const flightPlans = await Promise.all(
+            (globalMeta.flightPlanPaths ?? []).map(async (fpPath) => {
+                const fpObj = await env.BUCKET.get(fpPath);
+                if (!fpObj) return null;
+                const fp = await fpObj.json();
+
+                const fpMetaObj = await env.BUCKET.get(`data/${userId}/fp/${fp.fpid}/.metadata`);
+                const missions = fpMetaObj ? (await fpMetaObj.json()).missions ?? [] : [];
+
+                return {
+                    fpid:        fp.fpid,
+                    missionName: fp.missionName ?? null,
+                    createdAt:   fp.createdAt,
+                    frequency:   fp.frequency ?? null,
+                    missions:    missions.slice().sort((a, b) =>
+                        new Date(b.createdAt) - new Date(a.createdAt)),
+                };
+            })
+        );
+        return { flightPlans: flightPlans.filter(Boolean) };
+    },
+
+    async getMissionMetadata(env, userId, fpid, mid) {
+        const path = `data/${userId}/fp/${fpid}/${mid}/.metadata`;
+        const obj = await env.BUCKET.get(path);
+        if (!obj) return null;
+        return await obj.json();
+    },
+
+    async getSensorImageFile(env, userId, fpid, mid, index) {
+        const path = `data/${userId}/fp/${fpid}/${mid}/${index}_ndvi.jpg`;
+        return await env.BUCKET.get(path);
+    },
+
 }

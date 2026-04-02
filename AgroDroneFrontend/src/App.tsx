@@ -16,7 +16,7 @@ import {
   activateFlightPlan,
 } from './components/map/FlightPlans.tsx';
 import { AgroDroneMap } from './components/map/AgroDroneMap.tsx';
-import { TabType, MissionMeta } from './constants/types.ts';
+import { TabType, MissionMeta, SensorFlightPlan, SensorImage } from './constants/types.ts';
 import { useAuth } from './contexts/AuthContext.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { AdminPanel } from './pages/AdminPanel.tsx';
@@ -47,9 +47,16 @@ function AppContent() {
   const [visitedOrders, setVisitedOrders] = useState<Set<number>>(new Set());
   const wasFlyingRef = useRef(false);
   const airborneWaypointFetchedRef = useRef(false);
+  const [sensorData, setSensorData] = useState<SensorFlightPlan[]>([]);
+  const [activeSensorMission, setActiveSensorMission] = useState<{ fpid: string; mid: string } | null>(null);
+  const [sensorImages, setSensorImages] = useState<SensorImage[]>([]);
+  const hasLoadedSensorData = useRef(false);
+  const flyToBaseStationRef = useRef<(() => void) | null>(null);
 
   const { userId, mqttToken } = useAuth();
   const droneData = useDroneData({ userId, mqttToken });
+
+  const hasBaseStation = !!(droneData.baseStationPos ?? savedBaseStationPos);
 
   // Fetch the last-known base station position from the backend on mount,
   // so the map can center on it before MQTT telemetry arrives.
@@ -102,6 +109,7 @@ function AppContent() {
     } else if (wasFlyingRef.current && alt === 0) {
       wasFlyingRef.current = false;
       airborneWaypointFetchedRef.current = false;
+      hasLoadedSensorData.current = false;
       setWaypoints([]);
       setVisitedOrders(new Set());
       setActiveFpid(null);
@@ -164,17 +172,54 @@ function AppContent() {
     });
   }, [droneData.velocity]);
 
+  const handleSelectSensorMission = async (fpid: string, mid: string) => {
+    setActiveSensorMission({ fpid, mid });
+    setSensorImages([]);
+    try {
+      const meta = await authFetch(`/sensor/mission?fpid=${fpid}&mid=${mid}`).then(r => r.json());
+      const images: SensorImage[] = await Promise.all(
+        (meta.images ?? []).map(async (img: any) => {
+          const r = await authFetch(`/sensor/image?fpid=${fpid}&mid=${mid}&index=${img.index}`);
+          const blob = await r.blob();
+          return { ...img, url: URL.createObjectURL(blob) };
+        })
+      );
+      setSensorImages(images);
+    } catch { /* non-critical */ }
+  };
+
   const handleTabChange = async (tab: TabType) => {
     setActiveTab(tab);
     if (tab === 'flights' && !hasLoadedFlightPlans.current) {
       setFlightplanData(await getAllFlightPlans());
       hasLoadedFlightPlans.current = true;
     }
+    if (tab === 'sensor' && !hasLoadedSensorData.current) {
+      hasLoadedSensorData.current = true;
+      try {
+        const d = await authFetch('/sensor/all').then(r => r.json());
+        // Only show flight plans that have at least one mission, sorted newest-first
+        const plans: SensorFlightPlan[] = (d.flightPlans ?? [])
+          .filter((fp: SensorFlightPlan) => fp.missions.length > 0)
+          .sort((a: SensorFlightPlan, b: SensorFlightPlan) =>
+            b.missions[0].createdAt.localeCompare(a.missions[0].createdAt)
+          );
+        setSensorData(plans);
+        const fp = plans[0];
+        if (fp?.missions?.[0]) {
+          handleSelectSensorMission(fp.fpid, fp.missions[0].mid);
+        }
+      } catch { /* non-critical */ }
+    }
   };
 
-  const handleSaveFlightPlan = () => {
+  const handleSaveFlightPlan = async () => {
     const vertices = extractVertices(drawRef);
     if (!vertices) return;
+    // Always fetch fresh flight plans so we can check for duplicate names
+    const data = await getAllFlightPlans();
+    setFlightplanData(data);
+    hasLoadedFlightPlans.current = true;
     setModalVertices(vertices);
   };
 
@@ -194,14 +239,21 @@ function AppContent() {
     }
   };
 
+  const existingNames = (flightplanData?.flightplans ?? []).map((fp: any) => fp.missionName ?? '').filter(Boolean);
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header imageURL={droneData.imageURL} />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Header />
 
       {modalVertices && (
         <MissionMetadataModal
           vertices={modalVertices}
-          baseStationPos={droneData.baseStationPos}
+          baseStationPos={
+            droneData.baseStationPos?.[0] != null && droneData.baseStationPos?.[1] != null
+              ? (droneData.baseStationPos as [number, number])
+              : savedBaseStationPos ?? undefined
+          }
+          existingNames={existingNames}
           onSave={handleModalSave}
           onCancel={() => setModalVertices(null)}
         />
@@ -228,16 +280,29 @@ function AppContent() {
             }
           }}
           drawRef={drawRef}
+          sensorData={sensorData}
+          activeSensorMission={activeSensorMission}
+          onSelectSensorMission={handleSelectSensorMission}
         />
 
         <div className="flex-1 flex flex-col min-h-0">
           <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
 
           <div className="flex-1 relative z-0">
-            <MissionControls
-              activeTab={activeTab}
-              onSaveFlightPlan={handleSaveFlightPlan}
-            />
+            <div className="absolute top-1 right-1 z-50 flex gap-2">
+              {hasBaseStation && (
+                <button
+                  onClick={() => flyToBaseStationRef.current?.()}
+                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 shadow hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-blue-400 hover:border-blue-200 dark:hover:border-blue-500 transition-colors"
+                >
+                  Navigate to Base Station
+                </button>
+              )}
+              <MissionControls
+                activeTab={activeTab}
+                onSaveFlightPlan={handleSaveFlightPlan}
+              />
+            </div>
             <AgroDroneMap
               activeTab={activeTab}
               droneData={droneData}
@@ -245,6 +310,8 @@ function AppContent() {
               initialBaseStationPos={savedBaseStationPos}
               waypoints={waypoints}
               visitedOrders={visitedOrders}
+              sensorImages={activeTab === 'sensor' ? sensorImages : []}
+              onFlyToReady={(fn) => { flyToBaseStationRef.current = fn; }}
             />
           </div>
         </div>

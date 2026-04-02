@@ -1,10 +1,14 @@
 .maplibregl-ctrl-top-left {
   width: 100%;
-  padding: 4px;
-  display: flex !important; /* Force flexbox */
-  flex-direction: row;     /* Horizontal layout */
-  pointer-events: none;    /* Let clicks pass through the "empty" space */
-  
+  padding: 4px 4px 0 4px;
+  display: flex !important;
+  flex-direction: row;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.maplibregl-ctrl-geocoder {
+  margin-bottom: 0 !important;
 }
 
 .mapboxgl-ctrl-group.mapboxgl-ctrl {
@@ -59,6 +63,43 @@
   opacity: 0;
 }
 
+/* ── Geocoder dark mode ──────────────────────────────────────────────────── */
+.dark .maplibregl-ctrl-geocoder {
+  background-color: #1f2937;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.dark .maplibregl-ctrl-geocoder--input {
+  background-color: #1f2937;
+  color: #f3f4f6;
+  border-color: rgba(75, 85, 99, 0.6);
+  caret-color: #60a5fa;
+}
+
+.dark .maplibregl-ctrl-geocoder--input::placeholder {
+  color: #6b7280;
+}
+
+.dark .maplibregl-ctrl-geocoder--input:focus {
+  border-color: #3b82f6;
+  outline: none;
+}
+
+.dark .maplibregl-ctrl-geocoder .suggestions {
+  background-color: #1f2937;
+  border: 1px solid #374151;
+}
+
+.dark .maplibregl-ctrl-geocoder .suggestions > li > a {
+  color: #e5e7eb;
+}
+
+.dark .maplibregl-ctrl-geocoder .suggestions > .active > a,
+.dark .maplibregl-ctrl-geocoder .suggestions > li > a:hover {
+  background-color: #374151;
+  color: #f9fafb;
+}
+
 /* ── Base Station Popup ─────────────────────────────────────────────────── */
 .maplibregl-popup-content {
   padding: 0 !important;
@@ -87,4 +128,23 @@
 
 .maplibregl-popup-tip {
   border-top-color: #e5e7eb !important;
+}
+
+/* ── Popup dark mode ─────────────────────────────────────────────────────── */
+.dark .maplibregl-popup-content {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+.dark .maplibregl-popup-close-button {
+  color: #6b7280 !important;
+}
+
+.dark .maplibregl-popup-close-button:hover {
+  background-color: #374151 !important;
+  color: #d1d5db !important;
+}
+
+.dark .maplibregl-popup-tip {
+  border-top-color: #374151 !important;
 }

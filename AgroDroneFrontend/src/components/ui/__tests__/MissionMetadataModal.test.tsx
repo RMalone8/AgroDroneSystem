@@ -12,6 +12,7 @@ function renderModal(overrides: Partial<Parameters<typeof MissionMetadataModal>[
   const defaults = {
     vertices: [NEAR_VERTEX],
     baseStationPos: BASE,
+    existingNames: [],
     onSave: vi.fn(),
     onCancel: vi.fn(),
   };

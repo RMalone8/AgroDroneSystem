@@ -22,6 +22,28 @@ export interface DroneTelemetry {
     imageURL?: string;
   }
   
+export interface SensorMission {
+  mid: string;
+  createdAt: string;
+}
+
+export interface SensorFlightPlan {
+  fpid: string;
+  missionName: string | null;
+  createdAt: string;
+  frequency: string | null;
+  missions: SensorMission[];
+}
+
+export interface SensorImage {
+  index: number;
+  lat: number;
+  lng: number;
+  heading: number;
+  altitude: number;
+  url: string;
+}
+
   export interface SidebarProps {
     activeTab: string;
     telemetry: DroneTelemetry;
@@ -31,4 +53,7 @@ export interface DroneTelemetry {
     onSelectFlightPlan: (fp: any, drawRef: any) => void;
     onDeleteFlightPlan: (fp: any, flightplans: any, drawRef: any, setFlightplans: any) => void;
     onActivateFlightPlan: (fpid: string) => void;
+    sensorData?: SensorFlightPlan[];
+    activeSensorMission?: { fpid: string; mid: string } | null;
+    onSelectSensorMission?: (fpid: string, mid: string) => void;
   }

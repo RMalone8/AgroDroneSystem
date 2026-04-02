@@ -1,4 +1,25 @@
 const EARTH_RADIUS_M = 6_371_000;
+const SQ_METERS_PER_ACRE = 4_046.86;
+
+/**
+ * Compute the area of a polygon (in acres) using the Shoelace formula
+ * in a flat-earth metric projection centred on the first vertex.
+ */
+export function polygonAreaAcres(vertices: { lat: number; lng: number }[]): number {
+  if (vertices.length < 3) return 0;
+  const originLat = vertices[0].lat;
+  const LAT_M = 111_111;
+  const LNG_M = 111_111 * Math.cos((originLat * Math.PI) / 180);
+  const pts = vertices.map((v) => ({
+    x: (v.lng - vertices[0].lng) * LNG_M,
+    y: (v.lat - originLat) * LAT_M,
+  }));
+  let area = 0;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    area += pts[j].x * pts[i].y - pts[i].x * pts[j].y;
+  }
+  return Math.abs(area) / 2 / SQ_METERS_PER_ACRE;
+}
 
 export function haversineMeters(
   lat1: number, lng1: number,
@@ -76,4 +97,33 @@ export function isWithinRange(
   }
 
   return false;
+}
+
+/**
+ * Compute the 4 MapLibre image-source corners [lng, lat] for a nadir image
+ * taken at (lat, lng) with given heading (degrees, 0=north CW) and altitude (m).
+ * Camera: 62.2° H-FOV, 48.8° V-FOV (Raspberry Pi Camera Module 2).
+ * Returns: [topLeft, topRight, bottomRight, bottomLeft] each as [lng, lat].
+ */
+export function computeImageCorners(
+  lat: number, lng: number, heading: number, altitude: number
+): [[number, number], [number, number], [number, number], [number, number]] {
+  const HFOV = 62.2, VFOV = 48.8;
+  const camW = 2 * altitude * Math.tan((HFOV / 2) * Math.PI / 180);
+  const camH = 2 * altitude * Math.tan((VFOV / 2) * Math.PI / 180);
+  const degPerMLat = 1 / 111111;
+  const degPerMLng = 1 / (111111 * Math.cos(lat * Math.PI / 180));
+  const h = heading * Math.PI / 180;
+  const halfW = camW / 2, halfH = camH / 2;
+  // forward unit: (cos h, sin h) in (dlat, dlng); right unit: (sin h, cos h) rotated
+  const fLat = Math.cos(h) * halfH * degPerMLat;
+  const fLng = Math.sin(h) * halfH * degPerMLng;
+  const rLat = -Math.sin(h) * halfW * degPerMLat;
+  const rLng = Math.cos(h) * halfW * degPerMLng;
+  return [
+    [lng + fLng - rLng, lat + fLat - rLat], // top-left
+    [lng + fLng + rLng, lat + fLat + rLat], // top-right
+    [lng - fLng + rLng, lat - fLat + rLat], // bottom-right
+    [lng - fLng - rLng, lat - fLat - rLat], // bottom-left
+  ];
 }

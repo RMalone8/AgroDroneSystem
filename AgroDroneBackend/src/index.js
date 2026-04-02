@@ -410,13 +410,6 @@ export default {
                 const flightplan = await request.json();
                 console.log(flightplan);
                 await storage.flightPlanUpload(env, userId, flightplan);
-                if (env.MQTT_BROKER_HOST) {
-                    await publishFlightPlan(
-                        env.MQTT_BROKER_HOST, env.MQTT_BROKER_PORT ?? 1883,
-                        userId, flightplan,
-                        env.MQTT_ADMIN_USERNAME, env.MQTT_ADMIN_PASSWORD,
-                    ).catch((e) => console.error("MQTT publish failed:", e.message));
-                }
                 return new Response("Flight Plan Saved", { headers: { ...corsHeaders, "Content-Type": "application/json" } });
             }
 
@@ -473,6 +466,34 @@ export default {
                 await storage.updateBaseStationPosition(env, userId, lat, lng);
                 return new Response("Base station position saved", { headers: corsHeaders });
             }
+        }
+
+        // ── Sensor data retrieval routes ──────────────────────────────────────
+
+        if (url.pathname === "/sensor/all" && request.method === "GET") {
+            const data = await storage.getAllSensorData(env, userId);
+            return Response.json(data, { headers: corsHeaders });
+        }
+
+        if (url.pathname === "/sensor/mission" && request.method === "GET") {
+            const fpid = url.searchParams.get("fpid");
+            const mid  = url.searchParams.get("mid");
+            if (!fpid || !mid) return new Response("Missing params", { status: 400, headers: corsHeaders });
+            const meta = await storage.getMissionMetadata(env, userId, fpid, mid);
+            if (!meta) return new Response("Not Found", { status: 404, headers: corsHeaders });
+            return Response.json(meta, { headers: corsHeaders });
+        }
+
+        if (url.pathname === "/sensor/image" && request.method === "GET") {
+            const fpid  = url.searchParams.get("fpid");
+            const mid   = url.searchParams.get("mid");
+            const index = parseInt(url.searchParams.get("index") ?? "0", 10);
+            if (!fpid || !mid) return new Response("Missing params", { status: 400, headers: corsHeaders });
+            const obj = await storage.getSensorImageFile(env, userId, fpid, mid, index);
+            if (!obj) return new Response("Not Found", { status: 404, headers: corsHeaders });
+            return new Response(obj.body, {
+                headers: { ...corsHeaders, "Content-Type": "image/jpeg" }
+            });
         }
 
         // ── Sensor image routes ───────────────────────────────────────────────

@@ -110,12 +110,15 @@ def navigate_to(client, topic, tel, target_lat, target_lon, emergency=None):
     tel["lon"] = target_lon
 
 
-def simulate_flight(client, topic, tel, wp_list, emergency):
+def simulate_flight(client, topic, tel, wp_list, emergency) -> bool:
+    """Simulate a full drone flight. Returns True if all waypoints were visited."""
     print(f"Starting flight — {len(wp_list)} waypoints")
+    all_visited = True
 
     # Phase 1: Takeoff
     for step in range(1, 6):
         if emergency.is_set():
+            all_visited = False
             break
         tel["alt_rel"] = (step / 5.0) * CRUISE_ALT
         tel["vz"]      = -(CRUISE_ALT / 5.0)   # negative = climbing (MAVLink convention)
@@ -130,6 +133,7 @@ def simulate_flight(client, topic, tel, wp_list, emergency):
         print("Airborne at 30m")
         for wp in wp_list:
             if emergency.is_set():
+                all_visited = False
                 break
             navigate_to(client, topic, tel, wp["lat"], wp["lng"], emergency)
             if not emergency.is_set():
@@ -138,6 +142,8 @@ def simulate_flight(client, topic, tel, wp_list, emergency):
                 tel["vy"] = 0.0
                 publish(client, topic, tel)
                 time.sleep(1.0)
+    else:
+        all_visited = False
 
     # Phase 3: Return to base station (always runs; no emergency check mid-leg)
     if emergency.is_set():
@@ -161,6 +167,44 @@ def simulate_flight(client, topic, tel, wp_list, emergency):
     publish(client, topic, tel)
     emergency.clear()
     print("Landed — returning to idle")
+    return all_visited
+
+
+def _upload_mock_images(fpid, mid, waypoints_list, device_token, device_id):
+    """Generate a mock green NDVI image for each waypoint and POST to /sensor-image."""
+    from PIL import Image
+    import io
+
+    auth_headers = {
+        "Authorization": f"Bearer {device_token}",
+        "X-Device-Id": device_id,
+    }
+    for wp in waypoints_list:
+        img = Image.new("RGB", (320, 240), color=(45, 120, 45))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=60)
+        buf.seek(0)
+
+        try:
+            resp = requests.post(
+                f"{BACKEND_URL}/sensor-image",
+                headers=auth_headers,
+                data={
+                    "fpid":      fpid,
+                    "mid":       mid,
+                    "index":     str(wp["order"]),
+                    "lat":       str(wp["lat"]),
+                    "lng":       str(wp["lng"]),
+                    "heading":   "0.0",
+                    "altitude":  str(CRUISE_ALT),
+                    "timestamp": "",
+                },
+                files={"image": (f"ndvi_{wp['order']}.jpg", buf, "image/jpeg")},
+                timeout=10,
+            )
+            print(f"Mock image {wp['order']} uploaded: {resp.status_code}")
+        except Exception as e:
+            print(f"Warning: mock image upload failed for waypoint {wp['order']}: {e}")
 
 
 def main():
@@ -218,7 +262,7 @@ def main():
                 print(f"Waypoints POSTed: {resp.status_code}")
             except Exception as e:
                 print(f"Warning: waypoints POST failed: {e}")
-            flight_queue.put(wp_result["waypoints"])
+            flight_queue.put({"fpid": data["fpid"], "mid": mid, "waypoints": wp_result["waypoints"]})
             print(f"Flight plan queued: {wp_result['totalWaypoints']} waypoints")
         except Exception as e:
             print(f"Error processing flight plan: {e}")
@@ -237,8 +281,10 @@ def main():
     while True:
         emergency.clear()   # discard any signal received while idle
         try:
-            wp_list = flight_queue.get_nowait()
-            simulate_flight(client, topic, tel, wp_list, emergency)
+            job = flight_queue.get_nowait()
+            completed = simulate_flight(client, topic, tel, job["waypoints"], emergency)
+            if completed:
+                _upload_mock_images(job["fpid"], job["mid"], job["waypoints"], device_token, device_id)
         except queue.Empty:
             publish(client, topic, tel)
             time.sleep(1.0)

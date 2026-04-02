@@ -1,9 +1,14 @@
-import { Map, Marker, Popup, MapRef } from '@vis.gl/react-maplibre';
+import { Map, Marker, Popup, MapRef, Source, Layer } from '@vis.gl/react-maplibre';
 import { DrawControl } from './DrawControl';
 import GeocoderControl from './Geocoder';
 import { ICON, DRONE_ICON, drawProps, dronePinStyle, pinStyle, dimPinStyle } from '../../constants/mapStyles';
-import { useState, useRef, useCallback } from 'react';
-import { DroneTelemetry } from '../../constants/types';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { DroneTelemetry, SensorImage } from '../../constants/types';
+import { computeImageCorners } from '../../utils/geo';
+import { useDarkMode } from '../../contexts/DarkModeContext';
+
+const MAP_STYLE_LIGHT = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
+const MAP_STYLE_DARK  = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
 interface MapViewerProps {
   activeTab: string;
@@ -13,15 +18,19 @@ interface MapViewerProps {
   initialBaseStationPos?: [number, number] | null;
   waypoints?: { order: number; lat: number; lng: number }[];
   visitedOrders?: Set<number>;
+  sensorImages?: SensorImage[];
+  /** Called once flyToBaseStation is ready; parent can render the button itself. */
+  onFlyToReady?: (fn: () => void) => void;
 }
 
 const DEFAULT_LAT = 42.35316;
 const DEFAULT_LNG = -71.11777;
 const DEFAULT_ZOOM = 12;
 
-export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStationPos, waypoints, visitedOrders }: MapViewerProps) {
+export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStationPos, waypoints, visitedOrders, sensorImages, onFlyToReady }: MapViewerProps) {
   const [baseStationPopup, setBaseStationPopup] = useState<boolean>(false);
   const mapRef = useRef<MapRef>(null);
+  const { darkMode } = useDarkMode();
 
   const flyToBaseStation = useCallback(() => {
     const pos = droneData.baseStationPos ?? initialBaseStationPos;
@@ -29,12 +38,14 @@ export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStation
     mapRef.current?.flyTo({ center: [pos[1], pos[0]], zoom: 16, duration: 1200 });
   }, [droneData.baseStationPos, initialBaseStationPos]);
 
+  // Expose flyToBaseStation to parent once stable
+  useEffect(() => {
+    onFlyToReady?.(flyToBaseStation);
+  }, [flyToBaseStation, onFlyToReady]);
+
   // Use the saved backend position for the initial view; fall back to hardcoded default.
   const initLat = initialBaseStationPos?.[0] ?? DEFAULT_LAT;
   const initLng = initialBaseStationPos?.[1] ?? DEFAULT_LNG;
-
-  // Show the Navigate button whenever we have any known base station position.
-  const hasBaseStation = !!(droneData.baseStationPos ?? initialBaseStationPos);
 
   return (
     <Map
@@ -46,7 +57,7 @@ export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStation
         pitch:     0,
       }}
       style={{ width: '100%', height: '100%' }}
-      mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+      mapStyle={darkMode ? MAP_STYLE_DARK : MAP_STYLE_LIGHT}
     >
       {/* Draw Controls only active in Planning / Flights mode */}
       {(activeTab === 'planning' || activeTab === 'flights') && (
@@ -60,17 +71,6 @@ export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStation
       )}
 
       <GeocoderControl position="top-left" />
-
-      {/* Navigate to Base Station button */}
-      {hasBaseStation && (
-        <button
-          onClick={flyToBaseStation}
-          title="Navigate to base station"
-          className="absolute bottom-8 right-3 z-10 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 shadow-md hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors"
-        >
-          Navigate to Base Station
-        </button>
-      )}
 
       {/* Base Station Marker — dim (stored) until live telemetry arrives */}
       {(() => {
@@ -121,6 +121,26 @@ export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStation
           }} />
         </Marker>
       ))}
+
+      {/* Sensor image overlays — visible on sensor tab */}
+      {sensorImages?.map(img => {
+        const corners = computeImageCorners(img.lat, img.lng, img.heading, img.altitude);
+        return (
+          <Source
+            key={`sensor-${img.index}`}
+            id={`sensor-img-${img.index}`}
+            type="image"
+            url={img.url}
+            coordinates={corners}
+          >
+            <Layer
+              id={`sensor-layer-${img.index}`}
+              type="raster"
+              paint={{ 'raster-opacity': 0.75 }}
+            />
+          </Source>
+        );
+      })}
 
       {/* Base Station Popup */}
       {baseStationPopup && (() => {
