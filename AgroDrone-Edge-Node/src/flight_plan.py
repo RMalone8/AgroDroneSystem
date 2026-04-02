@@ -29,11 +29,11 @@ def on_message(_client, _userdata, msg):
         if os.path.exists(WAYPOINT_PATH):
             with open(WAYPOINT_PATH, "r") as f:
                 past_waypoints = json.load(f)
-            if past_waypoints["missionId"] == data["missionId"]:
+            if past_waypoints["fpid"] == data["fpid"]:
                 print("Flight plan already processed, skipping.")
                 return
 
-        print("Processing new flight plan of missionId:", data["missionId"])
+        print("Processing new flight plan of fpid:", data["fpid"])
         wp = waypoints.create_waypoints(data)
         with open(WAYPOINT_PATH, "w") as f:
             json.dump(wp, f, indent=4)

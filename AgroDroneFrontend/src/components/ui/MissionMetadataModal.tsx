@@ -44,13 +44,13 @@ export function MissionMetadataModal({ vertices, baseStationPos, onSave, onCance
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
-        <h3 className="font-semibold text-gray-900 mb-4 text-lg">Save Mission</h3>
+        <h3 className="font-semibold text-gray-900 mb-4 text-lg">Save Flight Plan</h3>
 
         <div className="space-y-4">
-          {/* Mission name */}
+          {/* Flight plan name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Mission Name <span className="text-red-500">*</span>
+              Flight Plan Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -111,7 +111,7 @@ export function MissionMetadataModal({ vertices, baseStationPos, onSave, onCance
             disabled={!canSubmit}
             className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Save Mission
+            Save Flight Plan
           </button>
         </div>
       </div>

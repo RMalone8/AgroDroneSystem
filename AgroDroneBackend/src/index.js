@@ -392,17 +392,17 @@ export default {
                 if (userRole !== 'device') {
                     return new Response("Forbidden", { status: 403, headers: corsHeaders });
                 }
-                const { missionId, waypoints } = await request.json();
-                if (!missionId || !Array.isArray(waypoints)) {
+                const { fpid, waypoints } = await request.json();
+                if (!fpid || !Array.isArray(waypoints)) {
                     return new Response("Missing fields", { status: 400, headers: corsHeaders });
                 }
-                await storage.waypointsUpload(env, userId, missionId, waypoints);
+                await storage.waypointsUpload(env, userId, fpid, waypoints);
                 return new Response("Waypoints saved", { headers: corsHeaders });
             }
 
             if (url.pathname.endsWith("/waypoints") && request.method === "GET") {
-                const missionId = url.pathname.split("/")[2];
-                const waypoints = await storage.waypointsRetrieval(env, userId, missionId);
+                const fpid = url.pathname.split("/")[2];
+                const waypoints = await storage.waypointsRetrieval(env, userId, fpid);
                 return Response.json(waypoints, { headers: corsHeaders });
             }
 
@@ -475,22 +475,26 @@ export default {
             }
         }
 
-        // ── Mosaic routes ─────────────────────────────────────────────────────
+        // ── Sensor image routes ───────────────────────────────────────────────
 
-        if (url.pathname === "/mosaic") {
-            if (request.method === "POST") {
-                const data = await request.formData();
-                const image_file = data.get("mosaic");
-                try {
-                    await storage.mosaicUpload(env, userId, image_file);
-                    console.log("Complete!");
-                } catch (e) {
-                    console.error("Mosaic Error: ", e.message);
-                }
-                return new Response("Image Updated", { headers: corsHeaders });
+        if (url.pathname === "/sensor-image" && request.method === "POST") {
+            const form = await request.formData();
+            const imageFile = form.get("image");
+            const fpid      = form.get("fpid");
+            const mid       = form.get("mid");
+            const index     = parseInt(form.get("index") ?? "0", 10);
+            const lat       = parseFloat(form.get("lat") ?? "0");
+            const lng       = parseFloat(form.get("lng") ?? "0");
+            const heading   = parseFloat(form.get("heading") ?? "0");
+            const altitude  = parseFloat(form.get("altitude") ?? "0");
+            const timestamp = form.get("timestamp") ?? new Date().toISOString();
+            if (!fpid || !mid || !imageFile) {
+                return new Response("Missing fields", { status: 400, headers: corsHeaders });
             }
-            const data = await storage.mosaicRetrieval(env, userId);
-            return new Response(data.body, { headers: corsHeaders });
+            await storage.sensorImageUpload(env, userId, fpid, mid, index, imageFile,
+                { lat, lng, heading, altitude, timestamp });
+            return new Response("Sensor image saved", { headers: corsHeaders });
         }
+
     }
 };

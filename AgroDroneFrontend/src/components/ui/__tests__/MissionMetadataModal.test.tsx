@@ -39,9 +39,9 @@ describe('MissionMetadataModal — rendering', () => {
     expect(screen.getByRole('option', { name: 'Monthly' })).toBeInTheDocument();
   });
 
-  it('renders Save Mission and Cancel buttons', () => {
+  it('renders Save Flight Plan and Cancel buttons', () => {
     renderModal();
-    expect(screen.getByRole('button', { name: 'Save Mission' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save Flight Plan' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
   });
 });
@@ -52,7 +52,7 @@ describe('MissionMetadataModal — submit disabled states', () => {
     // Fill time but leave name empty
     const timeInput = document.querySelector('input[type="datetime-local"]') as HTMLInputElement;
     fireEvent.change(timeInput, { target: { value: '2026-06-01T09:00' } });
-    expect(screen.getByRole('button', { name: 'Save Mission' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save Flight Plan' })).toBeDisabled();
   });
 
   it('disables submit when scheduled time is not set', () => {
@@ -60,7 +60,7 @@ describe('MissionMetadataModal — submit disabled states', () => {
     fireEvent.change(screen.getByPlaceholderText(/north field survey/i), {
       target: { value: 'Test Mission' },
     });
-    expect(screen.getByRole('button', { name: 'Save Mission' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save Flight Plan' })).toBeDisabled();
   });
 
   it('disables submit and shows error when baseStationPos is undefined', () => {
@@ -71,7 +71,7 @@ describe('MissionMetadataModal — submit disabled states', () => {
     const timeInput = document.querySelector('input[type="datetime-local"]') as HTMLInputElement;
     fireEvent.change(timeInput, { target: { value: '2026-06-01T09:00' } });
 
-    expect(screen.getByRole('button', { name: 'Save Mission' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save Flight Plan' })).toBeDisabled();
     expect(screen.getByText(/base station position unavailable/i)).toBeInTheDocument();
   });
 
@@ -83,7 +83,7 @@ describe('MissionMetadataModal — submit disabled states', () => {
     const timeInput = document.querySelector('input[type="datetime-local"]') as HTMLInputElement;
     fireEvent.change(timeInput, { target: { value: '2026-06-01T09:00' } });
 
-    expect(screen.getByRole('button', { name: 'Save Mission' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save Flight Plan' })).toBeDisabled();
     expect(screen.getByText(/no vertex is within 30 m/i)).toBeInTheDocument();
   });
 });
@@ -100,7 +100,7 @@ describe('MissionMetadataModal — valid submission', () => {
     fireEvent.change(timeInput, { target: { value: '2026-06-01T09:00' } });
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'weekly' } });
 
-    const btn = screen.getByRole('button', { name: 'Save Mission' });
+    const btn = screen.getByRole('button', { name: 'Save Flight Plan' });
     expect(btn).not.toBeDisabled();
     fireEvent.click(btn);
 
@@ -120,7 +120,7 @@ describe('MissionMetadataModal — valid submission', () => {
     });
     const timeInput = document.querySelector('input[type="datetime-local"]') as HTMLInputElement;
     fireEvent.change(timeInput, { target: { value: '2026-06-01T09:00' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save Mission' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save Flight Plan' }));
 
     expect(onSave.mock.calls[0][0].missionName).toBe('Trimmed Name');
   });

@@ -42,7 +42,7 @@ function AppContent() {
   const [modalVertices, setModalVertices] = useState<{ lat: number; lng: number }[] | null>(null);
   const [savedBaseStationPos, setSavedBaseStationPos] = useState<[number, number] | null>(null);
   const hasPersistedBaseStation = useRef(false);
-  const [activeMissionId, setActiveMissionId] = useState<string | null>(null);
+  const [activeFpid, setActiveFpid] = useState<string | null>(null);
   const [waypoints, setWaypoints] = useState<{ order: number; lat: number; lng: number }[]>([]);
   const [visitedOrders, setVisitedOrders] = useState<Set<number>>(new Set());
   const wasFlyingRef = useRef(false);
@@ -77,12 +77,12 @@ function AppContent() {
 
   // Poll for waypoints after a mission is activated (edge node may take ~1s to POST them).
   useEffect(() => {
-    if (!activeMissionId) return;
+    if (!activeFpid) return;
     let attempts = 0;
     const id = setInterval(async () => {
       attempts++;
       try {
-        const r = await authFetch(`/flightplan/${activeMissionId}/waypoints`);
+        const r = await authFetch(`/flightplan/${activeFpid}/waypoints`);
         const data = await r.json();
         if (Array.isArray(data) && data.length > 0) {
           setWaypoints(data);
@@ -92,7 +92,7 @@ function AppContent() {
       if (attempts >= 10) clearInterval(id);
     }, 1000);
     return () => clearInterval(id);
-  }, [activeMissionId]);
+  }, [activeFpid]);
 
   // Clear waypoints when the drone lands (alt_rel drops back to 0 after flying).
   useEffect(() => {
@@ -104,7 +104,7 @@ function AppContent() {
       airborneWaypointFetchedRef.current = false;
       setWaypoints([]);
       setVisitedOrders(new Set());
-      setActiveMissionId(null);
+      setActiveFpid(null);
     }
   }, [droneData.altRel]);
 
@@ -115,8 +115,8 @@ function AppContent() {
     if (alt <= 0 || waypoints.length > 0 || airborneWaypointFetchedRef.current) return;
     airborneWaypointFetchedRef.current = true;
 
-    const fetchForMission = (missionId: string) =>
-      authFetch(`/flightplan/${missionId}/waypoints`)
+    const fetchForMission = (fpid: string) =>
+      authFetch(`/flightplan/${fpid}/waypoints`)
         .then(r => r.json())
         .then((data: any) => {
           if (Array.isArray(data) && data.length > 0) {
@@ -127,9 +127,9 @@ function AppContent() {
         })
         .catch(() => { airborneWaypointFetchedRef.current = false; });
 
-    const missionId = activeMissionId ?? (flightplanData?.metadata?.currentFlightPlan as string | null);
-    if (missionId) {
-      fetchForMission(missionId);
+    const fpid = activeFpid ?? (flightplanData?.metadata?.currentFlightPlan as string | null);
+    if (fpid) {
+      fetchForMission(fpid);
     } else {
       // No mission cached locally — ask the backend for the active one
       authFetch('/flightplan/all')
@@ -172,7 +172,7 @@ function AppContent() {
     }
   };
 
-  const handleSaveMission = () => {
+  const handleSaveFlightPlan = () => {
     const vertices = extractVertices(drawRef);
     if (!vertices) return;
     setModalVertices(vertices);
@@ -181,7 +181,7 @@ function AppContent() {
   const handleModalSave = async (meta: MissionMeta) => {
     if (!modalVertices) return;
     const success = await saveFlightPlan({
-      missionId: crypto.randomUUID(),
+      fpid: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
       totalVertices: modalVertices.length - 1,
       vertices: modalVertices.map((v, i) => ({ order: i, ...v })),
@@ -215,15 +215,15 @@ function AppContent() {
           setFlightplans={setFlightplanData}
           onSelectFlightPlan={selectFlightPlan}
           onDeleteFlightPlan={deleteFlightPlan}
-          onActivateFlightPlan={async (missionId: string) => {
-            const ok = await activateFlightPlan(missionId);
+          onActivateFlightPlan={async (fpid: string) => {
+            const ok = await activateFlightPlan(fpid);
             if (ok) {
-              setActiveMissionId(missionId);
+              setActiveFpid(fpid);
               setWaypoints([]);
               setVisitedOrders(new Set());
               setFlightplanData((prev: any) => ({
                 ...prev,
-                metadata: { ...prev.metadata, currentFlightPlan: missionId }
+                metadata: { ...prev.metadata, currentFlightPlan: fpid }
               }));
             }
           }}
@@ -236,7 +236,7 @@ function AppContent() {
           <div className="flex-1 relative z-0">
             <MissionControls
               activeTab={activeTab}
-              onSaveMission={handleSaveMission}
+              onSaveFlightPlan={handleSaveFlightPlan}
             />
             <AgroDroneMap
               activeTab={activeTab}

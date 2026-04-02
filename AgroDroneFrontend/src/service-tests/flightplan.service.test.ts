@@ -72,9 +72,9 @@ const ALL_MISSION_IDS = [
   ACTIVATE_MQTT_ID,
 ];
 
-function makePlan(missionId: string) {
+function makePlan(fpid: string) {
   return {
-    missionId,
+    fpid,
     createdAt: new Date().toISOString(),
     totalVertices: 3,
     vertices: [
@@ -86,16 +86,16 @@ function makePlan(missionId: string) {
   };
 }
 
-async function savePlan(missionId: string) {
+async function savePlan(fpid: string) {
   return fetch(`${BACKEND_URL}/flightplan`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', Authorization: AUTH_HEADER },
-    body:    JSON.stringify(makePlan(missionId)),
+    body:    JSON.stringify(makePlan(fpid)),
   });
 }
 
-async function deletePlan(missionId: string) {
-  return fetch(`${BACKEND_URL}/flightplan/${missionId}`, {
+async function deletePlan(fpid: string) {
+  return fetch(`${BACKEND_URL}/flightplan/${fpid}`, {
     method:  'DELETE',
     headers: { Authorization: AUTH_HEADER },
   });
@@ -148,10 +148,10 @@ describe('Get all flight plans — GET /flightplan/all', () => {
     const response = await fetch(`${BACKEND_URL}/flightplan/all`, {
       headers: { Authorization: AUTH_HEADER },
     });
-    const data = await response.json() as { flightplans: { missionId: string }[] };
-    const found = data.flightplans.find((fp) => fp.missionId === SAVE_MISSION_ID);
+    const data = await response.json() as { flightplans: { fpid: string }[] };
+    const found = data.flightplans.find((fp) => fp.fpid === SAVE_MISSION_ID);
     expect(found).toBeDefined();
-    expect(found?.missionId).toBe(SAVE_MISSION_ID);
+    expect(found?.fpid).toBe(SAVE_MISSION_ID);
   });
 
   it('returns 401 without a valid token', async () => {
@@ -178,9 +178,9 @@ describe('Flight plan MQTT delivery — backend publishes after POST', () => {
 
       subscriber.on('message', (_topic, payload) => {
         try {
-          const received = JSON.parse(payload.toString()) as { missionId: string };
-          if (received.missionId !== MQTT_MISSION_ID) return;
-          expect(received.missionId).toBe(MQTT_MISSION_ID);
+          const received = JSON.parse(payload.toString()) as { fpid: string };
+          if (received.fpid !== MQTT_MISSION_ID) return;
+          expect(received.fpid).toBe(MQTT_MISSION_ID);
           subscriber.end();
           resolve();
         } catch (e) {
@@ -202,8 +202,8 @@ describe('Delete flight plan — DELETE /flightplan/:id', () => {
   it('deletes a flight plan and confirms it is gone', async () => {
     // Confirm it exists
     const beforeRes = await fetch(`${BACKEND_URL}/flightplan/all`, { headers: { Authorization: AUTH_HEADER } });
-    const before = await beforeRes.json() as { flightplans: { missionId: string }[] };
-    expect(before.flightplans.find(fp => fp.missionId === DELETE_MISSION_ID)).toBeDefined();
+    const before = await beforeRes.json() as { flightplans: { fpid: string }[] };
+    expect(before.flightplans.find(fp => fp.fpid === DELETE_MISSION_ID)).toBeDefined();
 
     // Delete
     const deleteRes = await deletePlan(DELETE_MISSION_ID);
@@ -211,8 +211,8 @@ describe('Delete flight plan — DELETE /flightplan/:id', () => {
 
     // Confirm it is gone
     const afterRes = await fetch(`${BACKEND_URL}/flightplan/all`, { headers: { Authorization: AUTH_HEADER } });
-    const after = await afterRes.json() as { flightplans: { missionId: string }[] };
-    expect(after.flightplans.find(fp => fp.missionId === DELETE_MISSION_ID)).toBeUndefined();
+    const after = await afterRes.json() as { flightplans: { fpid: string }[] };
+    expect(after.flightplans.find(fp => fp.fpid === DELETE_MISSION_ID)).toBeUndefined();
   });
 
   it('returns 401 without a valid token', async () => {
@@ -243,7 +243,7 @@ describe('Activate flight plan — PUT /flightplan/:id/activate', () => {
     expect(activateRes.status).toBe(200);
 
     const allRes = await fetch(`${BACKEND_URL}/flightplan/all`, { headers: { Authorization: AUTH_HEADER } });
-    const data = await allRes.json() as { flightplans: { missionId: string }[]; metadata: { currentFlightPlan: string } };
+    const data = await allRes.json() as { flightplans: { fpid: string }[]; metadata: { currentFlightPlan: string } };
     expect(data.metadata.currentFlightPlan).toBe(ACTIVATE_MISSION_ID);
   });
 
@@ -279,9 +279,9 @@ describe('Activate flight plan — PUT /flightplan/:id/activate', () => {
 
       subscriber.on('message', (_topic, payload) => {
         try {
-          const received = JSON.parse(payload.toString()) as { missionId: string };
-          if (received.missionId !== ACTIVATE_MQTT_ID) return;
-          expect(received.missionId).toBe(ACTIVATE_MQTT_ID);
+          const received = JSON.parse(payload.toString()) as { fpid: string };
+          if (received.fpid !== ACTIVATE_MQTT_ID) return;
+          expect(received.fpid).toBe(ACTIVATE_MQTT_ID);
           subscriber.end();
           resolve();
         } catch (e) {

@@ -158,7 +158,7 @@ def create_waypoints(flight_plan: dict):
     #print(waypoints_filtered)
 
     return {
-            "missionId": flight_plan["missionId"],
+            "fpid": flight_plan["fpid"],
             "createdAt": flight_plan["createdAt"], 
             "totalWaypoints": len(waypoints_filtered),
             "waypoints": waypoints_filtered

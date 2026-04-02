@@ -24,10 +24,10 @@ export function Sidebar({
       {confirmingId && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
-            <h3 className="font-semibold text-gray-900 mb-2">Set Active Mission</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">Activate Flight Plan</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Set mission <span className="font-mono font-bold">{confirmingId.slice(0, 8)}</span> as
-              the active flight plan? This will publish it to the drone.
+              Activate flight plan <span className="font-mono font-bold">{confirmingId.slice(0, 8)}</span>?
+              This will publish it to the drone.
             </p>
             <div className="flex gap-2 justify-end">
               <button
@@ -68,7 +68,7 @@ export function Sidebar({
               </button>
               <button
                 onClick={() => {
-                  const fp = flightplanData["flightplans"].find((p: any) => p.missionId === confirmingDeleteId);
+                  const fp = flightplanData["flightplans"].find((p: any) => p.fpid === confirmingDeleteId);
                   if (fp) onDeleteFlightPlan(fp, flightplanData["flightplans"], drawRef, setFlightplans);
                   setConfirmingDeleteId(null);
                 }}
@@ -132,15 +132,15 @@ export function Sidebar({
             <h3 className="text-lg font-semibold mb-3">Flight Plan History ({flightplanData?.["flightplans"]?.length || 0})</h3>
             <div className="space-y-2">
               {flightplanData?.["flightplans"]?.map((fp: any) => {
-                const isActive = fp.missionId === flightplanData["metadata"].currentFlightPlan;
+                const isActive = fp.fpid === flightplanData["metadata"].currentFlightPlan;
                 return (
-                  <div className="flex" key={fp.missionId}>
+                  <div className="flex" key={fp.fpid}>
                     <button
                       onClick={() => onSelectFlightPlan(fp, drawRef)}
                       className="flex-1 text-left p-3 border rounded-l hover:bg-blue-50 transition-all group border-gray-100 hover:border-blue-200"
                     >
                       <div className="font-medium text-sm text-blue-600 group-hover:text-blue-800">
-                        {fp.missionName ?? fp.missionId.slice(0, 8)}
+                        {fp.missionName ?? fp.fpid.slice(0, 8)}
                       </div>
                       <div className="text-xs text-gray-500">
                         {fp.scheduledAt ? new Date(fp.scheduledAt).toLocaleString() : new Date(fp.createdAt).toLocaleString()}
@@ -150,7 +150,7 @@ export function Sidebar({
                       )}
                     </button>
                     <button
-                      onClick={() => setConfirmingId(fp.missionId)}
+                      onClick={() => setConfirmingId(fp.fpid)}
                       title={isActive ? 'Active mission' : 'Set as active mission'}
                       className={`group self-stretch px-3 border-t border-b border-gray-100 flex items-center transition-colors ${
                         isActive ? 'cursor-default' : 'hover:bg-green-100'
@@ -163,7 +163,7 @@ export function Sidebar({
                       }`} />
                     </button>
                     <button
-                      onClick={() => setConfirmingDeleteId(fp.missionId)}
+                      onClick={() => setConfirmingDeleteId(fp.fpid)}
                       className="self-stretch px-3 border rounded-r border-gray-100 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                     >
                       X

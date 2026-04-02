@@ -9,7 +9,7 @@ export interface Vertex {
 }
 
 export interface FlightPlanPayload {
-  missionId: string;
+  fpid: string;
   missionName: string;
   scheduledAt: string;
   frequency: MissionFrequency;
@@ -67,7 +67,7 @@ export async function getAllFlightPlans() {
 
 export async function selectFlightPlan(fp: any, drawRef: MutableRefObject<any>) {
   const geojsonFeature = {
-    id: fp.missionId,
+    id: fp.fpid,
     type: 'Feature',
     properties: { createdAt: fp.createdAt },
     geometry: {
@@ -79,13 +79,13 @@ export async function selectFlightPlan(fp: any, drawRef: MutableRefObject<any>) 
   drawRef.current.add(geojsonFeature);
 }
 
-export async function activateFlightPlan(missionId: string) {
+export async function activateFlightPlan(fpid: string) {
   try {
-    const response = await authFetch(`/flightplan/${missionId}/activate`, {
+    const response = await authFetch(`/flightplan/${fpid}/activate`, {
       method: 'PUT',
     });
     if (response.ok) {
-      console.log('Flight plan activated:', missionId);
+      console.log('Flight plan activated:', fpid);
       return true;
     } else {
       console.error('Error activating flight plan. Status:', response.status);
@@ -105,19 +105,19 @@ export async function deleteFlightPlan(
 ) {
   try {
     if (drawRef.current) {
-      drawRef.current.delete(fp.missionId);
+      drawRef.current.delete(fp.fpid);
     }
-    const response = await authFetch(`/flightplan/${fp.missionId}`, {
+    const response = await authFetch(`/flightplan/${fp.fpid}`, {
       method: 'DELETE',
     });
     if (response.ok) {
       setFlightPlans((prev: any) => ({
         ...prev,
         flightplans: prev.flightplans.filter(
-          (plan: { missionId: any }) => plan.missionId !== fp.missionId,
+          (plan: { fpid: any }) => plan.fpid !== fp.fpid,
         ),
       }));
-      console.log('Successfully deleted flight plan', fp.missionId);
+      console.log('Successfully deleted flight plan', fp.fpid);
     } else {
       console.log('Response Code not OK:', response.status);
     }

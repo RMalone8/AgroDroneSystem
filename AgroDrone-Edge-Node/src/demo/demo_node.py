@@ -17,6 +17,7 @@ import queue
 import sys
 import threading
 import time
+import uuid
 
 import requests
 
@@ -30,6 +31,7 @@ SHARED_PATH  = "/shared/demo_credentials.json"
 MQTT_HOST    = os.getenv("MQTT_HOST", "mqtt")
 MQTT_PORT    = int(os.getenv("MQTT_PORT", 1883))
 BACKEND_URL  = os.getenv("BACKEND_URL", "http://localhost:8787")
+DATA_PATH    = os.getenv("DATA_PATH", "")
 
 BASE_LAT = 42.3551
 BASE_LON = -71.0656
@@ -192,10 +194,21 @@ def main():
         try:
             data = json.loads(msg.payload.decode())
             wp_result = waypoints.create_waypoints(data)
+            mid = str(uuid.uuid4())
+            # Write fpid + mid into local metadata.json so mosaic.py can use them
+            if DATA_PATH:
+                meta_path = os.path.join(DATA_PATH, "metadata.json")
+                if os.path.exists(meta_path):
+                    with open(meta_path, "r") as mf:
+                        local_meta = json.load(mf)
+                    local_meta["fpid"] = data["fpid"]
+                    local_meta["mid"]  = mid
+                    with open(meta_path, "w") as mf:
+                        json.dump(local_meta, mf, indent=4)
             try:
                 resp = requests.post(
                     f"{BACKEND_URL}/flightplan/waypoints",
-                    json={"missionId": data["missionId"], "waypoints": wp_result["waypoints"]},
+                    json={"fpid": data["fpid"], "waypoints": wp_result["waypoints"]},
                     headers={
                         "Authorization": f"Bearer {device_token}",
                         "X-Device-Id": device_id,

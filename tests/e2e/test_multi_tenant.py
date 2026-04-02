@@ -17,7 +17,7 @@ import paho.mqtt.client as mqtt
 from conftest import make_client, subscribe_and_collect, MQTT_HOST, MQTT_PORT
 
 TELEMETRY_PAYLOAD = json.dumps({"battery_remaining": "85", "alt_msl": "10.5", "lat": "42.35", "lon": "-71.11"})
-FLIGHT_PLAN_PAYLOAD = json.dumps({"missionId": "test-mission-001", "vertices": []})
+FLIGHT_PLAN_PAYLOAD = json.dumps({"fpid": "test-mission-001", "vertices": []})
 
 
 # ── Helper: collect messages on a topic for a given duration ──────────────────
@@ -168,7 +168,7 @@ class TestFlightPlanRouting:
         time.sleep(2)
 
         assert len(received) >= 1, "Device A did not receive its flight plan"
-        assert json.loads(received[0])["missionId"] == "test-mission-001"
+        assert json.loads(received[0])["fpid"] == "test-mission-001"
 
     def test_flightplan_for_user_a_not_received_by_device_b(self, backend_client, device_b):
         """A flight plan published for user A must NOT be received by device B."""

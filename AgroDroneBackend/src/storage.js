@@ -1,22 +1,4 @@
 export default {
-    // mosaic functions
-    async mosaicRetrieval(env, user_id) {
-        const path = `data/${user_id}/mosaic/mosaic1.jpg`;
-    
-        return await env.BUCKET.get(path);
-    },
-
-    async mosaicUpload(env, user_id, content) {
-        const path = `data/${user_id}/mosaic/mosaic1.jpg`;
-    
-        const object = await env.BUCKET.put(path, content, {
-            httpMetadata: { contentType: "image/jpeg"}
-        });
-    
-        console.log(`Successfully uploaded ${object.key} to R2`);
-        return object;
-    },
-
     //flight plan functions
     async flightPlanUpload(env, user_id, content) {
         // getting metadata file
@@ -41,7 +23,7 @@ export default {
 
         // adjust metadata for new flight plan
         metadata["lastUpdatedAt"] = now;
-        metadata["currentFlightPlan"] = `${content.missionId}`;
+        metadata["currentFlightPlan"] = `${content.fpid}`;
         const fp_path = `data/${user_id}/fp/${metadata["currentFlightPlan"]}.json`;
         if (!metadata["flightPlanPaths"].includes(fp_path)) {
             metadata["flightPlanPaths"].push(fp_path);
@@ -86,9 +68,9 @@ export default {
         return await data.json();
     },
 
-    async flightPlanDeletion(env, user_id, mission_Id) {
+    async flightPlanDeletion(env, user_id, fpid) {
         // getting metadata file
-        const fp_path = `data/${user_id}/fp/${mission_Id}.json`;
+        const fp_path = `data/${user_id}/fp/${fpid}.json`;
         const metadata_path = `data/${user_id}/fp/.metadata`;
         const meta_obj = await env.BUCKET.get(metadata_path);
         const now = new Date().toISOString();
@@ -122,7 +104,7 @@ export default {
         }
     },
 
-    async setActiveFlightPlan(env, user_id, mission_id) {
+    async setActiveFlightPlan(env, user_id, fpid) {
         const metadata_path = `data/${user_id}/fp/.metadata`;
         const meta_obj = await env.BUCKET.get(metadata_path);
 
@@ -132,18 +114,18 @@ export default {
         }
 
         const metadata = await meta_obj.json();
-        const fp_path = `data/${user_id}/fp/${mission_id}.json`;
+        const fp_path = `data/${user_id}/fp/${fpid}.json`;
 
         const fp_obj = await env.BUCKET.get(fp_path);
         if (!fp_obj) {
-            console.error("Flight plan not found:", mission_id);
+            console.error("Flight plan not found:", fpid);
             return null;
         }
 
         const flightplan = await fp_obj.json();
 
         metadata["lastUpdatedAt"] = new Date().toISOString();
-        metadata["currentFlightPlan"] = mission_id;
+        metadata["currentFlightPlan"] = fpid;
 
         await env.BUCKET.put(metadata_path, JSON.stringify(metadata), {
             httpMetadata: { contentType: "application/json" }
@@ -213,18 +195,55 @@ export default {
             "flightplans": flightplans};
     },
 
-    async waypointsUpload(env, user_id, mission_id, waypoints) {
-        const path = `data/${user_id}/fp/${mission_id}_waypoints.json`;
+    async waypointsUpload(env, user_id, fpid, waypoints) {
+        const path = `data/${user_id}/fp/${fpid}_waypoints.json`;
         await env.BUCKET.put(path, JSON.stringify(waypoints), {
             httpMetadata: { contentType: "application/json" }
         });
     },
 
-    async waypointsRetrieval(env, user_id, mission_id) {
-        const path = `data/${user_id}/fp/${mission_id}_waypoints.json`;
+    async waypointsRetrieval(env, user_id, fpid) {
+        const path = `data/${user_id}/fp/${fpid}_waypoints.json`;
         const obj = await env.BUCKET.get(path);
         if (!obj) return null;
         return await obj.json();
+    },
+
+    async sensorImageUpload(env, userId, fpid, mid, index, imageContent, imageMeta) {
+        // Store the compressed NDVI image
+        const imagePath = `data/${userId}/fp/${fpid}/${mid}/${index}_ndvi.jpg`;
+        await env.BUCKET.put(imagePath, imageContent, {
+            httpMetadata: { contentType: "image/jpeg" }
+        });
+
+        // Check if this mission already has a .metadata file
+        const missionMetaPath = `data/${userId}/fp/${fpid}/${mid}/.metadata`;
+        const existing = await env.BUCKET.get(missionMetaPath);
+
+        let missionMeta;
+        if (!existing) {
+            // First upload for this mid — create mission metadata
+            const now = new Date().toISOString();
+            missionMeta = { fpid, mid, createdAt: now, images: [] };
+
+            // Append this mission to the flight plan's own .metadata
+            const fpMetaPath = `data/${userId}/fp/${fpid}/.metadata`;
+            const fpMetaObj = await env.BUCKET.get(fpMetaPath);
+            const fpMeta = fpMetaObj ? await fpMetaObj.json() : { fpid, missions: [] };
+            if (!fpMeta.missions) fpMeta.missions = [];
+            fpMeta.missions.push({ mid, createdAt: now });
+            await env.BUCKET.put(fpMetaPath, JSON.stringify(fpMeta), {
+                httpMetadata: { contentType: "application/json" }
+            });
+        } else {
+            missionMeta = await existing.json();
+        }
+
+        // Append this image's entry to the mission metadata
+        missionMeta.images.push({ index, path: imagePath, ...imageMeta });
+        await env.BUCKET.put(missionMetaPath, JSON.stringify(missionMeta), {
+            httpMetadata: { contentType: "application/json" }
+        });
     },
 
 }

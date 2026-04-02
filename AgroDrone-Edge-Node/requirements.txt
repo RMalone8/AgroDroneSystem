@@ -10,3 +10,6 @@ pymavlink==2.4.49
 python-dotenv==1.2.2
 requests==2.33.1
 urllib3==2.6.3
+numpy
+opencv-python
+Pillow
