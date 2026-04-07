@@ -5,15 +5,11 @@ Description=Sends mission to the onboard Pi to be uploaded
 After=network-online.target
 
 [Service]
-Type=simple
+Type=oneshot
 User=sr-design
 WorkingDirectory=/home/sr-design/AgroDroneSystem/AgroDrone-Edge-Node/src
 EnvironmentFile=/home/sr-design/AgroDroneSystem/AgroDrone-Edge-Node/.onboard.env
-ExecStartPre=/usr/bin/sh ./onboard_connect.sh
 ExecStart=/usr/bin/sh ./flightplan_upload.sh
-Restart=on-failure
-RestartSec=10
-TimeoutStartSec=1800
 
 [Install]
 WantedBy=multi-user.target

@@ -21,6 +21,10 @@ def on_connect(client, _userdata, _flags, rc):
     else:
         print(f"Failed to connect to MQTT broker, return code: {rc}")
 
+def on_disconnect(_client, _userdata, rc):
+    if rc != 0:
+        print(f"Unexpected disconnect from MQTT broker, rc={rc}")
+
 def on_message(_client, _userdata, msg):
     try:
         data = json.loads(msg.payload.decode())
@@ -49,6 +53,7 @@ def main():
     client = mqtt.Client(client_id=DEVICE_ID)
     client.username_pw_set(username=f"device-{DEVICE_ID}", password=DEVICE_TOKEN)
     client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
     client.on_message = on_message
 
     client.connect(MQTT_HOST, MQTT_PORT)
