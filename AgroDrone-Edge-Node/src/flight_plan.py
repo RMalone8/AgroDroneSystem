@@ -50,7 +50,7 @@ def main():
         print("Error: DEVICE_ID, DEVICE_TOKEN, and USER_ID must be set in .env")
         return
 
-    client = mqtt.Client(client_id=DEVICE_ID)
+    client = mqtt.Client(client_id=f"{DEVICE_ID}-flightplan")
     client.username_pw_set(username=f"device-{DEVICE_ID}", password=DEVICE_TOKEN)
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect

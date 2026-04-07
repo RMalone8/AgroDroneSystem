@@ -50,7 +50,7 @@ def connect_mqtt():
         if rc != 0:
             print(f"MQTT disconnected unexpectedly (rc={rc}), will reconnect...")
 
-    client = mqtt.Client(client_id=DEVICE_ID)
+    client = mqtt.Client(client_id=f"{DEVICE_ID}-telemetry")
     client.username_pw_set(username=f"device-{DEVICE_ID}", password=DEVICE_TOKEN)
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
