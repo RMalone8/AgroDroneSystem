@@ -4,3 +4,4 @@
 __pycache__
 waypoints.json
 ingest/
+src/test/log_data

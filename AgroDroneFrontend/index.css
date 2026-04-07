@@ -1,14 +1,23 @@
 .maplibregl-ctrl-top-left {
   width: 100%;
-  padding: 4px 4px 0 4px;
+  padding: 0 4px 0 4px;
   display: flex !important;
   flex-direction: row;
   align-items: flex-start;
   pointer-events: none;
 }
 
-.maplibregl-ctrl-geocoder {
-  margin-bottom: 0 !important;
+/* Override MapLibre's default 10px top + left margin so geocoder sits flush
+   with the absolutely-positioned draw buttons */
+.maplibregl-ctrl-top-left .maplibregl-ctrl-geocoder {
+  margin: 0 !important;
+  transform: none !important;
+}
+
+/* The geocoder input is still offset by the library's internal top value.
+   Use translate on the wrapper to pull it flush to the top of the map. */
+.maplibregl-ctrl-top-left {
+  top: 4px !important;
 }
 
 .mapboxgl-ctrl-group.mapboxgl-ctrl {
@@ -23,81 +32,196 @@
   /* Adjusting for the width of the search bar to ensure true center */
   border-radius: 4px;
   display: flex;
-  background-color: rgb(162, 230, 148, 0.5);
+  background-color: rgba(14, 187, 14, 0.5);
 }
 
 /* Target the main geocoder container */
 .maplibregl-ctrl-geocoder {
-  left: 10px;
-  width: auto; /* Make it wider */
+  width: 360px;
   max-width: 600px;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
-/* Make the input text larger */
+/* Collapse the geocoder wrapper to exactly the input height and use flex
+   so the input fills it without relying on absolute/top positioning */
+.maplibregl-ctrl-top-left .maplibregl-ctrl-geocoder.maplibregl-ctrl {
+  height: auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  align-items: stretch !important;
+  position: relative !important;
+}
+
+/* Keep suggestions wrapper out of flex flow */
+.maplibregl-ctrl-geocoder .suggestions-wrapper {
+  position: absolute !important;
+  width: 100%;
+  left: 0;
+  top: 100%;
+}
+
+/* Make the input fill the container naturally via flex */
 .maplibregl-ctrl-geocoder--input {
   font-size: 18px;
-  height: 45px;
+  height: 36px !important;
+  position: static !important;
+  top: auto !important;
   caret-color: rgb(1, 52, 23);
   color: black;
-  padding: 10px 10px !important; /* adjust for the search icon */
-  border: 3px solid rgba(162, 230, 148, 0.25);
+  padding: 8px 10px !important;
+  border: 3px solid rgba(14, 187, 14, 0.5);
   border-radius: 4px;
+  box-sizing: border-box !important;
+  flex: 1;
+}
+
+/* Hide the search icon entirely — it overlaps the input and adds no value */
+.maplibregl-ctrl-geocoder--icon-search {
+  display: none !important;
 }
 
 .maplibregl-ctrl-geocoder .suggestions {
-  font-size: 16px;
+  font-size: 14px;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  left: 0 !important;
+  width: 100% !important;
+  top: calc(100% + 4px) !important;
 }
 
 .maplibregl-ctrl-geocoder .suggestions > li > a {
-  padding: 12px; /* Makes each result item "taller" */
+  padding: 10px 14px !important;
 }
 
+.maplibregl-ctrl-geocoder .suggestions > li + li {
+  border-top: 1px solid #f3f4f6;
+}
+
+.maplibregl-ctrl-geocoder .suggestions > .active > a,
+.maplibregl-ctrl-geocoder .suggestions > li > a:hover {
+  background-color: transparent !important;
+  color: #16a34a !important;
+}
+
+.maplibregl-ctrl-geocoder .suggestions > .active > a .maplibregl-ctrl-geocoder--suggestion-title,
+.maplibregl-ctrl-geocoder .suggestions > li > a:hover .maplibregl-ctrl-geocoder--suggestion-title,
+.maplibregl-ctrl-geocoder .suggestions > .active > a .maplibregl-ctrl-geocoder--suggestion-address,
+.maplibregl-ctrl-geocoder .suggestions > li > a:hover .maplibregl-ctrl-geocoder--suggestion-address {
+  color: #16a34a !important;
+}
+
+.maplibregl-ctrl-geocoder--suggestion {
+  display: flex !important;
+  width: 100%;
+  overflow: hidden;
+}
+
+.maplibregl-ctrl-geocoder--suggestion-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.maplibregl-ctrl-geocoder--suggestion-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.maplibregl-ctrl-geocoder--suggestion-address {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 1px;
+}
+
+.maplibregl-ctrl-geocoder--suggestion-icon,
 .maplibregl-ctrl-geocoder--result-icon {
-  width: 30px !important;  /* Default is usually around 20px */
-  height: 30px !important;
-  margin-right: 15px;      /* Add space so it doesn't crowd the text */
+  display: none !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
 }
 
 .maplibregl-ctrl-geocoder--icon {
-  width: 10 px;
-  opacity: 0;
+  display: none !important;
 }
 
 /* ── Geocoder dark mode ──────────────────────────────────────────────────── */
-.dark .maplibregl-ctrl-geocoder {
-  background-color: #1f2937;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+.dark .maplibregl-ctrl-geocoder,
+.dark .maplibregl-ctrl-geocoder.maplibregl-ctrl {
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .dark .maplibregl-ctrl-geocoder--input {
-  background-color: #1f2937;
-  color: #f3f4f6;
-  border-color: rgba(75, 85, 99, 0.6);
+  background-color: #1f2937 !important;
+  color: #f3f4f6 !important;
+  border-color: rgba(14, 187, 14, 0.5) !important;
   caret-color: #60a5fa;
 }
 
 .dark .maplibregl-ctrl-geocoder--input::placeholder {
-  color: #6b7280;
+  color: #6b7280 !important;
 }
 
 .dark .maplibregl-ctrl-geocoder--input:focus {
-  border-color: #3b82f6;
+  border-color: #3b82f6 !important;
   outline: none;
 }
 
 .dark .maplibregl-ctrl-geocoder .suggestions {
-  background-color: #1f2937;
-  border: 1px solid #374151;
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+}
+
+.dark .maplibregl-ctrl-geocoder .suggestions > li + li {
+  border-top-color: #374151 !important;
 }
 
 .dark .maplibregl-ctrl-geocoder .suggestions > li > a {
-  color: #e5e7eb;
+  color: #e5e7eb !important;
+  background-color: #1f2937 !important;
+}
+
+/* Kill any stray light backgrounds inside suggestion rows in dark mode */
+.dark .maplibregl-ctrl-geocoder .suggestions > li > a > *,
+.dark .maplibregl-ctrl-geocoder .suggestions > li > a > * > * {
+  background: transparent !important;
+}
+
+/* Zero out the icon fill in case the default renderer is ever used */
+.dark .maplibregl-ctrl-geocoder--suggestion-icon {
+  fill: transparent !important;
+  color: transparent !important;
+}
+
+.dark .maplibregl-ctrl-geocoder--suggestion-title {
+  color: #f9fafb !important;
+}
+
+.dark .maplibregl-ctrl-geocoder--suggestion-address {
+  color: #9ca3af !important;
 }
 
 .dark .maplibregl-ctrl-geocoder .suggestions > .active > a,
 .dark .maplibregl-ctrl-geocoder .suggestions > li > a:hover {
-  background-color: #374151;
-  color: #f9fafb;
+  background-color: transparent !important;
+  color: #4ade80 !important;
+}
+
+.dark .maplibregl-ctrl-geocoder .suggestions > .active > a .maplibregl-ctrl-geocoder--suggestion-title,
+.dark .maplibregl-ctrl-geocoder .suggestions > li > a:hover .maplibregl-ctrl-geocoder--suggestion-title,
+.dark .maplibregl-ctrl-geocoder .suggestions > .active > a .maplibregl-ctrl-geocoder--suggestion-address,
+.dark .maplibregl-ctrl-geocoder .suggestions > li > a:hover .maplibregl-ctrl-geocoder--suggestion-address {
+  color: #4ade80 !important;
 }
 
 /* ── Base Station Popup ─────────────────────────────────────────────────── */
@@ -147,4 +271,23 @@
 
 .dark .maplibregl-popup-tip {
   border-top-color: #374151 !important;
+}
+
+/* ── Dark mode scrollbars ────────────────────────────────────────────────── */
+.dark ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: #4b5563;
+  border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: #6b7280;
 }

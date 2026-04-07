@@ -70,7 +70,17 @@ export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStation
         />
       )}
 
-      <GeocoderControl position="top-left" />
+      <GeocoderControl
+        position="top-left"
+        render={(feature: any) => {
+          const name = feature.place_name ?? '';
+          const comma = name.indexOf(',');
+          const title = comma > -1 ? name.slice(0, comma) : name;
+          const address = comma > -1 ? name.slice(comma + 2) : '';
+          const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+          return `<div class="maplibregl-ctrl-geocoder--suggestion"><div class="maplibregl-ctrl-geocoder--suggestion-info"><div class="maplibregl-ctrl-geocoder--suggestion-title">${esc(title)}</div>${address ? `<div class="maplibregl-ctrl-geocoder--suggestion-address">${esc(address)}</div>` : ''}</div></div>`;
+        }}
+      />
 
       {/* Base Station Marker — dim (stored) until live telemetry arrives */}
       {(() => {

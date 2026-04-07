@@ -144,6 +144,8 @@ def main():
             pos = get_gps_position()
             if pos:
                 base_station_pos = pos
+            else:
+                base_station_pos = [42.34899, -71.10590]
             last_gps_check = now
 
         # Publish at 5 Hz when data has changed

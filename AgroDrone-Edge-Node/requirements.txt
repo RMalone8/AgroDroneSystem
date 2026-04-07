@@ -13,3 +13,5 @@ urllib3==2.6.3
 numpy
 opencv-python
 Pillow
+plotly
+pandas
