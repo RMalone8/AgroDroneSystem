@@ -38,9 +38,14 @@ def on_message(_client, _userdata, msg):
                 return
 
         print("Processing new flight plan of fpid:", data["fpid"])
-        wp = waypoints.create_waypoints(data)
+        result = waypoints.create_waypoints(data)
         with open(WAYPOINT_PATH, "w") as f:
-            json.dump(wp, f, indent=4)
+            json.dump({
+                "fpid": data["fpid"],
+                "createdAt": data["createdAt"],
+                "totalWaypoints": result["totalWaypoints"],
+                "waypoints": result["waypoints"]
+            }, f, indent=4)
 
     except Exception as e:
         print("Error processing flight plan message:", e)

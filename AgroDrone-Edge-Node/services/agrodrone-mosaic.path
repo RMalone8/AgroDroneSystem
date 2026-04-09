@@ -3,7 +3,7 @@
 Description=Trigger for processing the image data and sending it to the cloud
 
 [Path]
-PathChanged=/home/sr-design/system/data/SUCCESS.txt
+PathChanged=/home/sr-design/system/flightplans/
 
 [Install]
 WantedBy=multi-user.target

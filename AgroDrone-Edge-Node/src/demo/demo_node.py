@@ -179,7 +179,8 @@ def _upload_mock_images(fpid, mid, waypoints_list, device_token, device_id):
         "Authorization": f"Bearer {device_token}",
         "X-Device-Id": device_id,
     }
-    for wp in waypoints_list:
+
+    for i, wp in enumerate(waypoints_list):
         img = Image.new("RGB", (320, 240), color=(45, 120, 45))
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=60)
@@ -192,19 +193,19 @@ def _upload_mock_images(fpid, mid, waypoints_list, device_token, device_id):
                 data={
                     "fpid":      fpid,
                     "mid":       mid,
-                    "index":     str(wp["order"]),
+                    "index":     str(i),
                     "lat":       str(wp["lat"]),
                     "lng":       str(wp["lng"]),
                     "heading":   "0.0",
                     "altitude":  str(CRUISE_ALT),
                     "timestamp": "",
                 },
-                files={"image": (f"ndvi_{wp['order']}.jpg", buf, "image/jpeg")},
+                files={"image": (f"ndvi_{i}.jpg", buf, "image/jpeg")},
                 timeout=10,
             )
-            print(f"Mock image {wp['order']} uploaded: {resp.status_code}")
+            print(f"Mock image {i} uploaded: {resp.status_code}")
         except Exception as e:
-            print(f"Warning: mock image upload failed for waypoint {wp['order']}: {e}")
+            print(f"Warning: mock image upload failed for waypoint {i}: {e}")
 
 
 def main():
@@ -286,7 +287,10 @@ def main():
             if completed:
                 _upload_mock_images(job["fpid"], job["mid"], job["waypoints"], device_token, device_id)
         except queue.Empty:
-            publish(client, topic, tel)
+            try:
+                publish(client, topic, tel)
+            except Exception as e:
+                print(f"Publish failed: {e}")
             time.sleep(1.0)
 
 

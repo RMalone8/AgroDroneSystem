@@ -1,8 +1,15 @@
+# Latitude is X 
+# Longitude is Y 
+
 import json
 import math
-import time
+import csv
 
-def point_in_polygon(lat, lon, poly):
+MAX_WAYPOINTS = 120
+H_MAX = 70
+MAX_ITERS = 6
+
+def _point_in_polygon(lat, lon, poly):
     """
     lat, lon: point
     poly: list of (lat, lon) vertices, in order (clockwise or ccw)
@@ -24,7 +31,7 @@ def point_in_polygon(lat, lon, poly):
                 min(lon1, lon2) - eps <= lon <= max(lon1, lon2) + eps):
                 return True
 
-        # Ray casting: does the edge cross the horizontal ray to the right of the point?
+        # Ray casting
         intersects = ((lon1 > lon) != (lon2 > lon))
         if intersects:
             # latitude where the edge crosses this lon
@@ -35,77 +42,115 @@ def point_in_polygon(lat, lon, poly):
     return inside
 
 
-def create_waypoints(flight_plan: dict):
-    # Extract (x, y) = (lng, lat)
-    coordinates = []
-    wps = flight_plan["vertices"]
-    # all but the last (duplicate)
-    for i in range(len(flight_plan["vertices"]) - 1):
-        x = wps[i]["lat"]
-        y = wps[i]["lng"]
-        coordinates.append((x, y))
+def _meters_to_latlon(dx_m, dy_m, lat_deg):
+    # dx_m: east(+), west(-) in meters
+    # dy_m: north(+), south(-) in meters
+    deg_per_m_lat = 1.0 / 111111.0
+    deg_per_m_lon = 1.0 / (111111.0 * math.cos(math.radians(lat_deg)))
 
-    #print(coordinates)
+    dlat = dy_m * deg_per_m_lat
+    dlon = dx_m * deg_per_m_lon
+    return dlat, dlon
 
-    # Find the max and min x and y 
-    list_of_x, list_of_y = zip(*coordinates) 
+
+def _fov_corners(lat, lon, cam_W_m, cam_H_m, yaw_deg=0.0):
+    # cam_W_m = footprint width in meters
+    # cam_H_m = footprint height in meters
+    half_w = cam_W_m / 2.0
+    half_h = cam_H_m / 2.0
+
+    # corners around center BEFORE rotation (dx, dy) meters
+    corners = [
+        (-half_w, -half_h),  # bottom-left
+        ( half_w, -half_h),  # bottom-right
+        ( half_w,  half_h),  # top-right
+        (-half_w,  half_h),  # top-left
+    ]
+
+    yaw = math.radians(yaw_deg)
+    cos_y = math.cos(yaw)
+    sin_y = math.sin(yaw)
+
+    out = []
+    for (dx, dy) in corners:
+        # rotate around center
+        rx = dx * cos_y - dy * sin_y
+        ry = dx * sin_y + dy * cos_y
+
+        dlat, dlon = _meters_to_latlon(rx, ry, lat)
+        out.append((lat + dlat, lon + dlon))
+
+    return out
+
+def _compute_camera_footprint(altitude, horiz_FOV_deg, vert_FOV_deg):
+    """
+    Computes ground-projected camera footprint dimensions in meters.
+    """
+    cam_W = 2 * altitude * math.tan(math.radians(horiz_FOV_deg / 2.0))
+    cam_H = 2 * altitude * math.tan(math.radians(vert_FOV_deg / 2.0))
+    return cam_W, cam_H
+
+def _compute_bounding_square(coordinates):
+    """
+    Builds square that encloses the user define area using max distance 
+    Returns 
+        center_x, center_y,
+        x_min_square, x_max_square,
+        y_min_square, y_max_square
+    """
+    list_of_x, list_of_y = zip(*coordinates)
 
     x_min, x_max = min(list_of_x), max(list_of_x)
     y_min, y_max = min(list_of_y), max(list_of_y)
 
-    #print(x_min, x_max)
-    #print(y_min, y_max)
-
-    big_square_length = x_min + x_max 
+    # print(x_min, x_max)
+    # print(y_min, y_max)
 
     # Finding center point 
     center_x = (x_max + x_min) / 2.0
     center_y = (y_max + y_min) / 2.0
-
-    width  = x_max - x_min   # total width of square (meters)
-    height = y_max - y_min
-
-    # Defining Bounds of Big Square 
-    side_length = min(width, height)
-    half_side = side_length / 2.0
-
-    x_left   = center_x - half_side
-    x_right  = center_x + half_side
-    y_bottom = center_y - half_side
-    y_top    = center_y + half_side
-
     center = (center_x, center_y)
-    #print("the center is", center)
 
     dist = []
-    #print(len(coordinates))
+    print(len(coordinates))
     for i in range(len(coordinates)):
         d = math.dist(center, coordinates[i])
         dist.append(abs(d))
-
+    
     max_dist_from_center = max(dist)
-    #print(max_dist_from_center)
 
     # Big square bounds 
     x_min_square = center_x - max_dist_from_center
-    #print("x_left", x_min_square, "\n")
     x_max_square = center_x + max_dist_from_center
     y_min_square = center_y - max_dist_from_center
     y_max_square = center_y + max_dist_from_center 
 
-    # Convert the FOV of camera into change in lat and change in long 
-    horiz_FOV = 62.2
-    vert_FOV = 48.8
-    altitude = 30  #in meters 
+    return center_x, center_y, x_min_square, x_max_square, y_min_square, y_max_square
 
-    cam_W = 2 * altitude * math.tan(math.radians(horiz_FOV/2)) 
-    cam_H = 2 * altitude * math.tan(math.radians(vert_FOV/2)) 
+def _generate_snaking_waypoints(
+    x_min_square,
+    x_max_square,
+    y_min_square,
+    y_max_square,
+    altitude,
+    horiz_FOV_deg,
+    vert_FOV_deg,
+    center_lat,
+    start_order=1
+):
+    """
+    Generates waypoints in a snaking pattern over the bounding box 
+    Returns
+        waypoints_out: list of (order, lat, lon)
+        cam_W: footprint width in meters
+        cam_H: footprint height in meters
+        dlat: latitude step size in degrees
+        dlon: longitude step size in degrees
+    """
+    cam_W, cam_H = _compute_camera_footprint(altitude, horiz_FOV_deg, vert_FOV_deg)
 
     deg_per_m_lat = 1.0 / 111111.0
-    deg_per_m_lon = 1.0 / (111111.0 * math.cos(math.radians(center_x)))
-
-    # print("Change in Latitude:", change_in_lat)
-    # print("Change in Longitude:", change_in_long)
+    deg_per_m_lon = 1.0 / (111111.0 * math.cos(math.radians(center_lat)))
 
     dlat = cam_H * deg_per_m_lat
     dlon = cam_W * deg_per_m_lon
@@ -121,8 +166,8 @@ def create_waypoints(flight_plan: dict):
     row = 0
     lat = start_lat
 
-    order = 1
-    while lat <= end_lat + 1e-12: 
+    order = start_order
+    while lat <= end_lat + 1e-12:  
         if row % 2 == 0:
             # left -> right in longitude
             lon = start_lon
@@ -142,24 +187,70 @@ def create_waypoints(flight_plan: dict):
         lat += dlat
         row += 1
 
-    #print("Generated waypoints:", len(waypoints_out))
-    #print(waypoints_out, "\n")
+    return waypoints_out, cam_W, cam_H, dlat, dlon
 
-    # Bounds checking 
+def _filter_waypoints_to_polygon(waypoints, poly):
+    """
+    Filters generated waypointsd so only thoses inside he user defined area are kept
+    """
+    filtered = []
+    for (order, lat, lon) in waypoints:
+        if _point_in_polygon(lat, lon, poly):
+            filtered.append({"order": order, "lat": lat, "lng": lon})
+    return filtered
 
-    waypoints_filtered = []
-    count = 0
-    for (order,x,y) in waypoints_out:
-        if x > x_min and x < x_max and y > y_min and y < y_max: 
-            waypoints_filtered.append({"order": count, "lat": x, "lng": y})
-            count += 1
+def create_waypoints(data):
 
-    #print("Filtered waypoints:", len(waypoints_filtered))
-    #print(waypoints_filtered)
+    # Accept either "vertices" (backend flight plan object) or "waypoints" (legacy)
+    raw_vertices = data.get("vertices") or data.get("waypoints") or []
 
-    return {
-            "fpid": flight_plan["fpid"],
-            "createdAt": flight_plan["createdAt"], 
-            "totalWaypoints": len(waypoints_filtered),
-            "waypoints": waypoints_filtered
-        }
+    # Extract (x, y) = (lat, lng)
+    coordinates = [(wp["lat"], wp["lng"]) for wp in raw_vertices]
+
+    print("Polygon coordinates:")
+    print(coordinates) # print user defined input
+
+    poly = [(wp["lat"], wp["lng"]) for wp in raw_vertices]
+    center_x, center_y, x_min_square, x_max_square, y_min_square, y_max_square = _compute_bounding_square(coordinates)
+
+    print("Center:", (center_x, center_y))
+    print("Bounding square:")
+    print(x_min_square, x_max_square, y_min_square, y_max_square)
+
+    horiz_FOV = 62.2
+    vert_FOV = 48.8
+    altitude = 30 # default altitude in meters
+    it = 0
+
+    while True:
+        waypoints_out, cam_W, cam_H, dlat, dlon = _generate_snaking_waypoints(
+            x_min_square=x_min_square,
+            x_max_square=x_max_square,
+            y_min_square=y_min_square,
+            y_max_square=y_max_square,
+            altitude=altitude,
+            horiz_FOV_deg=horiz_FOV,
+            vert_FOV_deg=vert_FOV,
+            center_lat=center_x,
+            start_order=1
+        )
+        
+        waypoints_filtered = _filter_waypoints_to_polygon(waypoints_out, poly)
+
+        print(f"Iteration {it + 1}: altitude = {altitude:.2f} m, filtered waypoints = {len(waypoints_filtered)}")
+
+        if len(waypoints_filtered) <= MAX_WAYPOINTS:
+            break
+
+        scale = math.sqrt(len(waypoints_filtered) / MAX_WAYPOINTS)
+        altitude = min(altitude * scale, H_MAX)
+
+        it += 1
+        if it >= MAX_ITERS:
+            print("Warning: reached iteration cap.")
+            break
+
+    print("Final altitude:", altitude)
+    print("Final filtered waypoints:", len(waypoints_filtered))
+
+    return {"waypoints": waypoints_filtered, "totalWaypoints": len(waypoints_filtered)}
