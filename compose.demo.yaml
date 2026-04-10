@@ -16,7 +16,8 @@
 ##
 ## To stop and reset:
 ##   docker compose -f compose.demo.yaml down -v
-##   (-v removes the demo_shared volume so the next run starts clean)
+##   (-v removes demo_shared and demo_wrangler so the next run starts clean)
+##   This does NOT affect accounts or data in the regular compose stack.
 ##
 
 services:
@@ -41,7 +42,7 @@ services:
     volumes:
       - ./AgroDroneBackend:/app
       - /app/node_modules
-      - /app/.wrangler
+      - demo_wrangler:/app/.wrangler
     depends_on:
       - mqtt
     command: sh -c "npm install && npm run dev -- --ip 0.0.0.0 --var MQTT_BROKER_URL:ws://mqtt:9001"
@@ -89,3 +90,4 @@ services:
 
 volumes:
   demo_shared:
+  demo_wrangler:

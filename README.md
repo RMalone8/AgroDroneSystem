@@ -1,42 +1,6 @@
-# AgroDrone System
+# AgroDrone
 
-A multi-tenant agricultural drone management platform. An AgroDrone admin registers edge nodes for clients, each client's drone streams telemetry only to their own dashboard, and flight plans are routed back to the correct drone.
-
----
-
-## Architecture
-
-```
-┌─────────────┐       HTTPS        ┌──────────────────────┐
-│   Frontend  │ ◄────────────────► │   AgroDroneBackend   │
-│  (React)    │                    │  (Cloudflare Worker) │
-└──────┬──────┘                    └──────────┬───────────┘
-       │ MQTT / WebSocket                      │ MQTT / TCP          ▲ HTTPS
-       │  user: userId                         │  user: agrodrone-   │  POST /mosaic
-       │  pass: mqttToken                      │        backend      │  Authorization: Bearer DEVICE_TOKEN
-       ▼                                       ▼  pass: MQTT_ADMIN   │  X-Device-Id: DEVICE_ID
-┌────────────────────────────────────────────────────────┐           │
-│               Mosquitto MQTT Broker                     │           │
-│          Dynamic Security Plugin (ACL enforced)         │           │
-│                                                         │           │
-│  {userId}/telemetry   — device pub,   frontend sub      │           │
-│  {userId}/flightplan  — backend pub,  device sub        │           │
-│  {userId}/emergency   — frontend pub, device sub        │           │
-└─────────────────────────────┬──────────────────────────┘           │
-                              │ MQTT / TCP                            │
-                              │  user: device-{deviceId}             │
-                              │  pass: DEVICE_TOKEN                  │
-                     ┌────────┴──────────┐                           │
-                     │    Edge Node      │ ──────────────────────────┘
-                     │  (Raspberry Pi)   │
-                     └───────────────────┘
-```
-
-### Key isolation guarantee
-
-Every MQTT client is restricted to **only** the topics that belong to their `userId`. A device registered for User A cannot publish to User B's topics, and User B's frontend cannot subscribe to User A's telemetry. This is enforced at the broker level by Mosquitto Dynamic Security ACLs.
-
----
+The AgroDrone System is a semi-autonomous monitoring platform designed for small farmers. Access is managed via admin-distributed tokens, ensuring secure entry for authorized users. At the core of the infrastructure, admins register edge nodes for each client which act as the central nervous system, routing telemetry, flight plans, emergency signals, and sensor data between the web dashboard and deployed drones.
 
 ## Edge node environment variables
 
@@ -48,54 +12,12 @@ When an admin registers an edge node, three values are produced:
 | `DEVICE_TOKEN` | A 64-character random secret. Used as the MQTT password (`device-{DEVICE_ID}`) and as the HTTP `Authorization: Bearer` token. **Shown only once — store it securely.** |
 | `USER_ID` | The UUID of the client account that owns this device. Determines which `{userId}/*` MQTT topics the device publishes to and subscribes from. |
 
-These go in `AgroDrone-Edge-Node/.env`:
+These go in `AgroDrone-Edge-Node/.env` on the edge node itself:
 
 ```env
 DEVICE_ID=<paste from admin panel>
 DEVICE_TOKEN=<paste from admin panel>
 USER_ID=<paste from admin panel>
-```
-
----
-
-## Prerequisites
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for the full stack via Compose)
-- [Node.js 20+](https://nodejs.org/) and [Wrangler](https://developers.cloudflare.com/workers/wrangler/) (for backend dev without Docker)
-- [Python 3.11+](https://www.python.org/) and `pip` (for edge node without Docker)
-
----
-
-## Running the full stack locally
-
-```bash
-docker compose up --build
-```
-
-| Service | URL |
-|---|---|
-| Frontend | http://localhost:5173 |
-| Backend API | http://localhost:8787 |
-| MQTT broker (TCP) | localhost:1883 |
-| MQTT broker (WebSocket) | localhost:9001 |
-
-### Backend environment (`.dev.vars`)
-
-The backend reads secrets from `AgroDroneBackend/.dev.vars`. A development copy is already committed with safe placeholder values. For production, rotate every value:
-
-```env
-# MQTT broker credentials (must match MQTT/dynamic-security.json)
-MQTT_ADMIN_USERNAME=agrodrone-backend
-MQTT_ADMIN_PASSWORD=<strong random secret>
-
-# JWT signing key — generate with: openssl rand -hex 32
-JWT_SECRET=<strong random secret>
-
-# Multi-use tokens for client account creation (dev only)
-VALID_ACCESS_TOKENS=AGRO-ALPHA-TOKEN-1,AGRO-ALPHA-TOKEN-2
-
-# Multi-use tokens for admin account creation — keep these private
-VALID_ADMIN_ACCESS_TOKENS=AGRO-ADMIN-TOKEN-1,AGRO-ADMIN-TOKEN-2
 ```
 
 ---
@@ -145,7 +67,7 @@ This is the full end-to-end flow for getting a client's drone connected to their
 
 ### Step 4 — Configure the edge node
 
-On the Raspberry Pi (or wherever the edge node runs), edit `AgroDrone-Edge-Node/.env`:
+On the Edge Node (Raspberry Pi 4), create `AgroDrone-Edge-Node/.env`:
 
 ```env
 BACKEND_URL=http://<your-backend-host>:8787
@@ -155,23 +77,6 @@ MQTT_PORT=1883
 DEVICE_ID=<paste from Step 3>
 DEVICE_TOKEN=<paste from Step 3>
 USER_ID=<paste from Step 3>
-```
-
-Then start the edge node:
-
-```bash
-cd AgroDrone-Edge-Node
-pip install -r requirements.txt
-python src/flight_plan.py   # listens for flight plans and drives waypoints
-# In a separate terminal:
-python src/telemetry.py     # publishes one telemetry reading
-```
-
-Or via Docker (recommended for production):
-
-```bash
-docker build -t agrodrone-edge ./AgroDrone-Edge-Node
-docker run --env-file AgroDrone-Edge-Node/.env agrodrone-edge
 ```
 
 ### Step 5 — Verify
@@ -194,73 +99,93 @@ Device tokens are never shown here. If a token needs to be rotated, register a n
 
 ---
 
-## Running E2E tests
+## Local development setup
 
-### Static tests (pre-seeded credentials)
+This section is for developers standing the stack up from scratch.
 
-Tests two isolated tenants with credentials baked into `MQTT/dynamic-security.test.json`:
+### Step 1 — Install prerequisites
+
+- [Docker](https://www.docker.com/get-started/) with Compose support
+
+Only needed if running the backend or edge node **outside** Docker:
+- [Node.js 20+](https://nodejs.org/) and [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/) — backend only
+- [Python 3.11+](https://www.python.org/) — edge node only
+
+---
+
+### Step 2 — Run the setup script
+
+Several config files are gitignored and must be created from their committed examples before the stack will start. Run this once after cloning:
 
 ```bash
-docker compose -f compose.test.yaml up --build --abort-on-container-exit
+sh setup.sh
 ```
 
-### Dynamic tests (credentials provisioned at runtime)
+This creates the following files (skipping any that already exist):
 
-Starts a clean broker, has a setup container provision credentials via the Mosquitto Dynamic Security API, then verifies routing:
+| Created file | Source |
+|---|---|
+| `AgroDroneBackend/.dev.vars` | `AgroDroneBackend/.dev.vars.example` |
+| `AgroDroneFrontend/.env` | `AgroDroneFrontend/.env.example` |
+| `MQTT/dynsec/dynamic-security.json` | `MQTT/dynamic-security.bootstrap.json` |
+
+The defaults in the example files work out of the box for local development. Key things to know if you need to customise:
+
+- **`AgroDroneBackend/.dev.vars`** — backend secrets (JWT key, MQTT admin password, registration tokens). `MQTT_ADMIN_PASSWORD` must match the `agrodrone-backend` entry in `MQTT/dynsec/dynamic-security.json`.
+- **`AgroDroneFrontend/.env`** — `VITE_BACKEND_URL` points the frontend at the backend. Change this when building for production.
+- **`AgroDroneBackend/wrangler.jsonc`** — KV and R2 bindings. Placeholder IDs are fine locally; replace with real Cloudflare IDs for production deployment.
+
+---
+
+### Step 3 — Start the stack
 
 ```bash
-docker compose -f compose.dynamic.yaml up --build --abort-on-container-exit
+docker compose up --build
 ```
 
-The startup order is:
+| Service | URL / address |
+|---|---|
+| Frontend | http://localhost:5173 (also :5174 for a second tab) |
+| Backend API | http://localhost:8787 |
+| MQTT broker (TCP) | localhost:1883 |
+| MQTT broker (WebSocket) | localhost:9001 |
 
-```
-mqtt (healthy)
-  └─► setup (provisioning → exits 0)
-        └─► edge-node-a  (publishes telemetry for user dyn-user-a)
-        └─► edge-node-b  (publishes telemetry for user dyn-user-b)
-        └─► test-runner  (pytest verifies ACL isolation)
+Account and flight data persists in the `wrangler_state` Docker volume between restarts. To wipe all state:
+
+```bash
+docker compose down -v
 ```
 
 ---
 
-## Project structure
+### Step 4 — Create an admin account
 
+See [First-time setup: creating an admin account](#first-time-setup-creating-an-admin-account) above. Use one of the `VALID_ADMIN_ACCESS_TOKENS` from `.dev.vars` when registering.
+
+---
+
+### Demo mode
+
+To run with a simulated drone instead of real hardware:
+
+```bash
+docker compose -f compose.demo.yaml up --build
 ```
-AgroDroneSystem/
-├── AgroDroneBackend/        Cloudflare Worker (auth, flight plans, device tokens)
-│   ├── src/
-│   │   ├── index.js         HTTP routes + raw MQTT publisher
-│   │   ├── auth.js          JWT, password hashing, device tokens, access tokens
-│   │   └── storage.js       R2 operations (flight plans, mosaics, base station pos)
-│   ├── wrangler.jsonc        KV + R2 bindings
-│   └── .dev.vars            Local secrets (never commit real values)
-├── AgroDroneFrontend/       React + Vite dashboard
-│   └── src/
-│       ├── contexts/AuthContext.tsx   JWT + mqttToken state
-│       ├── hooks/useDroneData.ts      MQTT subscriber (telemetry)
-│       ├── pages/AdminPanel.tsx       Admin-only device + token management
-│       └── components/map/            MapLibre GL map + flight plan UI
-├── AgroDrone-Edge-Node/     Python edge node (Raspberry Pi)
-│   ├── src/
-│   │   ├── telemetry.py       Publish one telemetry reading over MQTT
-│   │   ├── telemetry_loop.py  Continuous publisher (used in E2E tests)
-│   │   ├── flight_plan.py     Subscribe to flight plans over MQTT, drive waypoints
-│   │   └── mosaic.py          POST /mosaic to backend (HTTPS, device token auth)
-│   └── .env                 DEVICE_ID / DEVICE_TOKEN / USER_ID go here
-├── MQTT/
-│   ├── mosquitto.conf                 Production broker config (dynsec, no anon)
-│   ├── dynamic-security.json          Bootstrap: admin client only
-│   ├── mosquitto.test.conf            Test broker config
-│   ├── dynamic-security.test.json     Pre-seeded test credentials
-│   ├── mosquitto.bootstrap.conf       Dynamic-test broker config
-│   └── dynamic-security.bootstrap.json  Bootstrap for dynamic tests
-├── tests/e2e/
-│   ├── conftest.py              Fixtures for static tests
-│   ├── test_multi_tenant.py     Static ACL + routing tests
-│   ├── setup_dynamic.py         Runtime credential provisioner
-│   └── test_dynamic_routing.py  Dynamic routing tests
-├── compose.yaml             Development stack
-├── compose.test.yaml        Static E2E test stack
-└── compose.dynamic.yaml     Dynamic E2E test stack
+
+This provisions demo accounts automatically and streams simulated telemetry. Demo state is stored separately from the regular stack — resetting it does not affect your real accounts:
+
+```bash
+docker compose -f compose.demo.yaml down -v
+```
+
+---
+
+### E2E tests
+
+```bash
+# Static tests — credentials pre-seeded in MQTT/dynamic-security.test.json
+docker compose -f compose.test.yaml up --build --abort-on-container-exit
+
+# Dynamic tests — credentials provisioned at runtime via Mosquitto Dynamic Security
+docker compose -f compose.dynamic.yaml up --build --abort-on-container-exit
 ```

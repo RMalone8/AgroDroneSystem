@@ -1,0 +1,19 @@
+MQTT_BROKER_HOST=mqtt
+MQTT_BROKER_PORT=1883
+
+# Credentials the backend uses to connect to Mosquitto as an admin client.
+# Must match the "agrodrone-backend" client entry in MQTT/dynsec/dynamic-security.json.
+MQTT_ADMIN_USERNAME=agrodrone-backend
+MQTT_ADMIN_PASSWORD=test-admin-pass
+
+# JWT signing secret — use a long random string in production
+# Generate one with: openssl rand -hex 32
+JWT_SECRET=dev-only-secret-replace-before-deploying-to-production
+
+# Comma-separated list of valid access tokens for new CLIENT account creation.
+# In production, these are issued by admins via POST /admin/access-token.
+VALID_ACCESS_TOKENS=AGRO-ALPHA-TOKEN-1,AGRO-ALPHA-TOKEN-2,AGRO-ALPHA-TOKEN-3
+
+# Comma-separated list of valid access tokens for ADMIN account creation.
+# Keep these secret — only share with AgroDrone staff.
+VALID_ADMIN_ACCESS_TOKENS=AGRO-ADMIN-TOKEN-1,AGRO-ADMIN-TOKEN-2
