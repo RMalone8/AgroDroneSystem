@@ -127,7 +127,6 @@ This creates the following files (skipping any that already exist):
 |---|---|
 | `AgroDroneBackend/.dev.vars` | `AgroDroneBackend/.dev.vars.example` |
 | `AgroDroneFrontend/.env` | `AgroDroneFrontend/.env.example` |
-| `MQTT/dynsec/dynamic-security.json` | `MQTT/dynamic-security.bootstrap.json` |
 
 The defaults in the example files work out of the box for local development. Key things to know if you need to customise:
 

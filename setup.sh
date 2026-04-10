@@ -20,9 +20,5 @@ echo "Setting up local config files..."
 copy_if_missing AgroDroneBackend/.dev.vars.example   AgroDroneBackend/.dev.vars
 copy_if_missing AgroDroneFrontend/.env.example        AgroDroneFrontend/.env
 
-# MQTT dynamic security state — bootstrapped from the seed file
-mkdir -p MQTT/dynsec
-copy_if_missing MQTT/dynamic-security.bootstrap.json  MQTT/dynsec/dynamic-security.json
-
 echo ""
 echo "Done. You can now run: docker compose up --build"

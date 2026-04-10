@@ -42,9 +42,17 @@ services:
     command: sh -c "npm install && npm run dev -- --ip 0.0.0.0 --var MQTT_BROKER_URL:ws://mqtt:9001"
   mqtt:
     image: eclipse-mosquitto:latest
+    entrypoint:
+      - sh
+      - -c
+      - |
+        [ -f /mosquitto/dynamic-security/dynamic-security.json ] || \
+          cp /mosquitto/bootstrap/dynamic-security.json /mosquitto/dynamic-security/dynamic-security.json
+        exec /docker-entrypoint.sh mosquitto -c /mosquitto/config/mosquitto.conf
     volumes:
       - ./MQTT/mosquitto.conf:/mosquitto/config/mosquitto.conf
-      - ./MQTT/dynsec:/mosquitto/dynamic-security
+      - ./MQTT/dynamic-security.bootstrap.json:/mosquitto/bootstrap/dynamic-security.json:ro
+      - mqtt_dynsec:/mosquitto/dynamic-security
       - ./MQTT/data:/mosquitto/data
       - ./MQTT/log:/mosquitto/log
     ports:
@@ -53,3 +61,4 @@ services:
 
 volumes:
   wrangler_state:
+  mqtt_dynsec:

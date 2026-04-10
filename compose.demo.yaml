@@ -24,9 +24,17 @@ services:
 
   mqtt:
     image: eclipse-mosquitto:latest
+    entrypoint:
+      - sh
+      - -c
+      - |
+        [ -f /mosquitto/dynamic-security/dynamic-security.json ] || \
+          cp /mosquitto/bootstrap/dynamic-security.json /mosquitto/dynamic-security/dynamic-security.json
+        exec /docker-entrypoint.sh mosquitto -c /mosquitto/config/mosquitto.conf
     volumes:
       - ./MQTT/mosquitto.conf:/mosquitto/config/mosquitto.conf
-      - ./MQTT/dynsec:/mosquitto/dynamic-security
+      - ./MQTT/dynamic-security.bootstrap.json:/mosquitto/bootstrap/dynamic-security.json:ro
+      - demo_mqtt_dynsec:/mosquitto/dynamic-security
       - ./MQTT/data:/mosquitto/data
       - ./MQTT/log:/mosquitto/log
     ports:
@@ -91,3 +99,4 @@ services:
 volumes:
   demo_shared:
   demo_wrangler:
+  demo_mqtt_dynsec:
