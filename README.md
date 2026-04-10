@@ -186,5 +186,9 @@ docker compose -f compose.demo.yaml down -v
 docker compose -f compose.test.yaml up --build --abort-on-container-exit
 
 # Dynamic tests — credentials provisioned at runtime via Mosquitto Dynamic Security
-docker compose -f compose.dynamic.yaml up --build --abort-on-container-exit
+# Note: do NOT use --abort-on-container-exit here; the setup service exits with 0
+# intentionally and that flag would tear down the network before the tests finish.
+docker compose -f tests/compose.dynamic.yaml up --build -d
+docker compose -f tests/compose.dynamic.yaml wait test-runner
+docker compose -f tests/compose.dynamic.yaml down -v
 ```
