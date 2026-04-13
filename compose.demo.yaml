@@ -7,7 +7,7 @@
 ## Run:
 ##   docker compose -f compose.demo.yaml up --build
 ##
-## Log in at http://localhost:5173 with:
+## Log in at http://localhost with:
 ##   Email:    demo-client@agrodrone.com
 ##   Password: DemoClient1!
 ##
@@ -37,39 +37,72 @@ services:
       - demo_mqtt_dynsec:/mosquitto/dynamic-security
       - ./MQTT/data:/mosquitto/data
       - ./MQTT/log:/mosquitto/log
-    ports:
-      - "1883:1883"
-      - "9001:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 1883"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
   backend:
     build:
       context: ./AgroDroneBackend
       dockerfile: Dockerfile
-    ports:
-      - "8787:8787"
     volumes:
       - ./AgroDroneBackend:/app
       - /app/node_modules
       - demo_wrangler:/app/.wrangler
     depends_on:
-      - mqtt
-    command: sh -c "npm install && npm run dev -- --ip 0.0.0.0 --var MQTT_BROKER_URL:ws://mqtt:9001"
+      mqtt:
+        condition: service_healthy
+    command: >
+      sh -c "npm install && npm run dev -- --ip 0.0.0.0
+      --var MQTT_BROKER_URL:ws://mqtt:9001
+      --var ALLOWED_ORIGINS:http://localhost"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:8787',r=>process.exit(0)).on('error',()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
 
   frontend-1:
     container_name: frontend-1
     build:
       context: ./AgroDroneFrontend
       dockerfile: Dockerfile
-    ports:
-      - "5173:5173"
     volumes:
       - ./AgroDroneFrontend:/app
       - /app/node_modules
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     depends_on:
-      - backend
-      - mqtt
+      backend:
+        condition: service_healthy
+      mqtt:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:5173',r=>process.exit(0)).on('error',()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
 
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      frontend-1:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      mqtt:
+        condition: service_healthy
+
+  # setup and edge-node talk to backend directly over the Docker network —
+  # no nginx needed since these are server-side processes, not browsers.
   setup:
     build:
       context: ./tests/e2e

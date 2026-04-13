@@ -9,7 +9,7 @@ export function sendEmergencySignal(message: string, credentials: EmergencyCrede
   const { userId, mqttToken } = credentials;
   const topic = `${userId}/emergency`;
 
-  const client = mqtt.connect('ws://localhost:9001', {
+  const client = mqtt.connect(`ws://${window.location.host}/mqtt`, {
     clean:    true,
     username: userId,
     password: mqttToken,

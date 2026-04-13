@@ -28,7 +28,7 @@ export function useDroneData({ userId, mqttToken }: DroneDataOptions) {
 
     const topic = `${userId}/telemetry`;
 
-    const client = mqtt.connect('ws://localhost:9001', {
+    const client = mqtt.connect(`ws://${window.location.host}/mqtt`, {
       clean:    true,
       username: userId,
       password: mqttToken,

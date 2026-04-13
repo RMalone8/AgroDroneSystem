@@ -26,7 +26,7 @@ USER_ID=<paste from admin panel>
 
 An admin account requires an **admin access token**. In development these are listed in `.dev.vars` under `VALID_ADMIN_ACCESS_TOKENS`.
 
-1. Open http://localhost:5173
+1. Open http://localhost
 2. Click **Register**
 3. Enter an email, password, and one of the admin access tokens (e.g. `AGRO-ADMIN-TOKEN-1`)
 4. You will land on the **Admin Panel**
@@ -47,7 +47,7 @@ This is the full end-to-end flow for getting a client's drone connected to their
 
 ### Step 2 — Client creates their account
 
-1. Client opens http://localhost:5173 and clicks **Register**
+1. Client opens http://localhost and clicks **Register**
 2. They enter their email, a password, and the access token you gave them
 3. After registering they land on their dashboard
 
@@ -70,13 +70,26 @@ This is the full end-to-end flow for getting a client's drone connected to their
 On the Edge Node (Raspberry Pi 4), create `AgroDrone-Edge-Node/.env`:
 
 ```env
-BACKEND_URL=http://<your-backend-host>:8787
-MQTT_HOST=<your-broker-host>
+BACKEND_URL=http://<your-host>
+MQTT_HOST=<your-host>
 MQTT_PORT=1883
 
 DEVICE_ID=<paste from Step 3>
 DEVICE_TOKEN=<paste from Step 3>
 USER_ID=<paste from Step 3>
+
+WAYPOINT_PATH=<absolute path to waypoints.json on this device>
+```
+
+> **Note:** `BACKEND_URL` and `MQTT_HOST` should both point at the nginx host (no port suffix needed — nginx routes HTTP on port 80 and TCP MQTT on port 1883).
+
+Also create `AgroDrone-Edge-Node/.onboard.env` for the script that rsyncs waypoints to the onboard Pi:
+
+```env
+DRONE_PI_IP=<static IP of the onboard Raspberry Pi>
+DRONE_PI_USER=<SSH username on the onboard Pi>
+LOCAL_FILE=<same as WAYPOINT_PATH — local path to waypoints.json>
+REMOTE_DEST=<destination path on the onboard Pi where waypoints will be written>
 ```
 
 ### Step 5 — Verify
@@ -131,7 +144,7 @@ This creates the following files (skipping any that already exist):
 The defaults in the example files work out of the box for local development. Key things to know if you need to customise:
 
 - **`AgroDroneBackend/.dev.vars`** — backend secrets (JWT key, MQTT admin password, registration tokens). `MQTT_ADMIN_PASSWORD` must match the `agrodrone-backend` entry in `MQTT/dynsec/dynamic-security.json`.
-- **`AgroDroneFrontend/.env`** — `VITE_BACKEND_URL` points the frontend at the backend. Change this when building for production.
+- **`AgroDroneFrontend/.env`** — `VITE_BACKEND_URL` points the frontend at nginx (defaults to `http://localhost`). Change this to your nginx host when building for production.
 - **`AgroDroneBackend/wrangler.jsonc`** — KV and R2 bindings. Placeholder IDs are fine locally; replace with real Cloudflare IDs for production deployment.
 
 ---
@@ -144,10 +157,10 @@ docker compose up --build
 
 | Service | URL / address |
 |---|---|
-| Frontend | http://localhost:5173 (also :5174 for a second tab) |
-| Backend API | http://localhost:8787 |
+| Frontend (load balanced) | http://localhost |
+| Backend API | http://localhost/auth, /admin, /flightplan, /basestation, /sensor, /sensor-image |
 | MQTT broker (TCP) | localhost:1883 |
-| MQTT broker (WebSocket) | localhost:9001 |
+| MQTT broker (WebSocket) | ws://localhost/mqtt |
 
 Account and flight data persists in the `wrangler_state` Docker volume between restarts. To wipe all state:
 
