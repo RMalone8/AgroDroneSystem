@@ -1,2 +1,4 @@
 .DS_Store
 MQTT/dynsec/dynamic-security.json
+MQTT/dynamic-security.bootstrap.json
+nginx/certs/

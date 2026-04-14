@@ -9,14 +9,17 @@ import gpsd
 
 load_dotenv()
 
-DEVICE_NAME  = os.getenv("RADIO_DEVICE", "/dev/ttyUSB0")
-BAUD_RATE    = int(os.getenv("RADIO_BAUD", 57600))
-MQTT_HOST    = os.getenv("MQTT_HOST", "localhost")
-MQTT_PORT    = int(os.getenv("MQTT_PORT", 1883))
-DEVICE_ID    = os.getenv("DEVICE_ID")
-DEVICE_TOKEN = os.getenv("DEVICE_TOKEN")
-USER_ID      = os.getenv("USER_ID")
-TOPIC        = f"{USER_ID}/telemetry"
+DEVICE_NAME    = os.getenv("RADIO_DEVICE", "/dev/ttyUSB0")
+BAUD_RATE      = int(os.getenv("RADIO_BAUD", 57600))
+MQTT_HOST      = os.getenv("MQTT_HOST", "localhost")
+MQTT_PORT      = int(os.getenv("MQTT_PORT", 443))
+MQTT_TRANSPORT = os.getenv("MQTT_TRANSPORT", "websockets")
+MQTT_WS_PATH   = os.getenv("MQTT_WS_PATH", "/mqtt")
+MQTT_TLS       = os.getenv("MQTT_TLS", "true").lower() == "true"
+DEVICE_ID      = os.getenv("DEVICE_ID")
+DEVICE_TOKEN   = os.getenv("DEVICE_TOKEN")
+USER_ID        = os.getenv("USER_ID")
+TOPIC          = f"{USER_ID}/telemetry"
 
 RC_MESSAGES = {
     1: "incorrect protocol version",
@@ -50,13 +53,17 @@ def connect_mqtt():
         if rc != 0:
             print(f"MQTT disconnected unexpectedly (rc={rc}), will reconnect...")
 
-    client = mqtt.Client(client_id=f"{DEVICE_ID}-telemetry")
+    client = mqtt.Client(client_id=f"{DEVICE_ID}-telemetry", transport=MQTT_TRANSPORT)
+    if MQTT_TRANSPORT == "websockets":
+        client.ws_set_options(path=MQTT_WS_PATH)
+    if MQTT_TLS:
+        client.tls_set()
     client.username_pw_set(username=f"device-{DEVICE_ID}", password=DEVICE_TOKEN)
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
     client.reconnect_delay_set(min_delay=1, max_delay=30)
 
-    print(f"Connecting to MQTT broker at {MQTT_HOST}:{MQTT_PORT}...")
+    print(f"Connecting to MQTT broker at {MQTT_HOST}:{MQTT_PORT} (transport={MQTT_TRANSPORT}, tls={MQTT_TLS})...")
     client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
     client.loop_start()
 

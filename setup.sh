@@ -17,8 +17,9 @@ copy_if_missing() {
 
 echo "Setting up local config files..."
 
-copy_if_missing AgroDroneBackend/.dev.vars.example   AgroDroneBackend/.dev.vars
-copy_if_missing AgroDroneFrontend/.env.example        AgroDroneFrontend/.env
+copy_if_missing AgroDroneBackend/.dev.vars.example                    AgroDroneBackend/.dev.vars
+copy_if_missing AgroDroneFrontend/.env.example                        AgroDroneFrontend/.env
+copy_if_missing MQTT/dynamic-security.bootstrap.json.example          MQTT/dynamic-security.bootstrap.json
 
 echo ""
 echo "Done. You can now run: docker compose up --build"

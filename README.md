@@ -70,9 +70,12 @@ This is the full end-to-end flow for getting a client's drone connected to their
 On the Edge Node (Raspberry Pi 4), create `AgroDrone-Edge-Node/.env`:
 
 ```env
-BACKEND_URL=http://<your-host>
+BACKEND_URL=https://<your-host>
 MQTT_HOST=<your-host>
-MQTT_PORT=1883
+MQTT_PORT=443
+MQTT_TRANSPORT=websockets
+MQTT_WS_PATH=/mqtt
+MQTT_TLS=true
 
 DEVICE_ID=<paste from Step 3>
 DEVICE_TOKEN=<paste from Step 3>
@@ -81,7 +84,7 @@ USER_ID=<paste from Step 3>
 WAYPOINT_PATH=<absolute path to waypoints.json on this device>
 ```
 
-> **Note:** `BACKEND_URL` and `MQTT_HOST` should both point at the nginx host (no port suffix needed — nginx routes HTTP on port 80 and TCP MQTT on port 1883).
+> **Note:** MQTT now travels over WebSocket (wss://) through nginx — the same port 443 that serves the web app. No raw TCP port 1883 is needed. For local development without TLS (e.g. `MQTT_HOST=macmini`), set `MQTT_PORT=80` and `MQTT_TLS=false`.
 
 Also create `AgroDrone-Edge-Node/.onboard.env` for the script that rsyncs waypoints to the onboard Pi:
 
