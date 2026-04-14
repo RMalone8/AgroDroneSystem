@@ -187,7 +187,14 @@ To run with a simulated drone instead of real hardware:
 docker compose -f compose.demo.yaml up --build
 ```
 
-This provisions demo accounts automatically and streams simulated telemetry. Demo state is stored separately from the regular stack — resetting it does not affect your real accounts:
+This provisions demo accounts automatically and streams simulated telemetry. Once the stack is up, log in at http://localhost:5173 with:
+
+| Account | Email | Password |
+|---|---|---|
+| Demo client | `demo-client@agrodrone.com` | `DemoClient1!` |
+| Demo admin | `demo-admin@agrodrone.com` | `DemoAdmin1!` |
+
+Draw a flight plan near Boston Common → Save Mission → Activate to watch the drone fly. Take down the demo stack with:
 
 ```bash
 docker compose -f compose.demo.yaml down -v
