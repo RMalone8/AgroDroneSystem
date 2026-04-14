@@ -7,11 +7,44 @@
  * Run with: npm run test:service
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import mqtt from 'mqtt';
 
-const BROKER_WS_URL = 'ws://localhost:9001';
-const TOPIC = 'telemetry';
+const BACKEND_URL    = process.env.VITE_BACKEND_URL || 'http://localhost:8787';
+const BROKER_WS_URL  = 'ws://localhost:9001';
+
+const TEST_EMAIL        = process.env.TEST_USER_EMAIL    ?? 'servicetest@agrodrone.test';
+const TEST_PASSWORD     = process.env.TEST_USER_PASSWORD ?? 'ServiceTest123!';
+const TEST_ACCESS_TOKEN = process.env.TEST_ACCESS_TOKEN  ?? 'AGRO-ALPHA-TOKEN-1';
+
+// Admin credentials — used to publish to the telemetry topic (only devices/backend may publish)
+const MQTT_ADMIN_USERNAME = process.env.TEST_MQTT_ADMIN_USERNAME ?? 'agrodrone-backend';
+const MQTT_ADMIN_PASSWORD = process.env.TEST_MQTT_ADMIN_PASSWORD ?? '';
+
+let TEST_USER_ID   = '';
+let TEST_MQTT_TOKEN = '';
+
+beforeAll(async () => {
+  let res = await fetch(`${BACKEND_URL}/auth/login`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ email: TEST_EMAIL, password: TEST_PASSWORD }),
+  });
+
+  if (res.status === 401) {
+    res = await fetch(`${BACKEND_URL}/auth/register`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email: TEST_EMAIL, password: TEST_PASSWORD, accessToken: TEST_ACCESS_TOKEN }),
+    });
+  }
+
+  if (!res.ok) throw new Error(`Auth setup failed: ${res.status} ${await res.text()}`);
+
+  const data = await res.json() as { token: string; userId: string; mqttToken: string };
+  TEST_USER_ID    = data.userId;
+  TEST_MQTT_TOKEN = data.mqttToken;
+});
 
 const sampleTelemetry = {
   voltage_battery: 23.98,
@@ -34,20 +67,31 @@ const sampleTelemetry = {
 describe('Telemetry MQTT pipeline', () => {
   it('broker relays a published telemetry message to subscribers', () =>
     new Promise<void>((resolve, reject) => {
-      const subscriber = mqtt.connect(BROKER_WS_URL);
-      const publisher = mqtt.connect(BROKER_WS_URL);
+      const topic = `${TEST_USER_ID}/telemetry`;
+
+      // Subscriber uses frontend user credentials (subscribe permission on telemetry topic)
+      const subscriber = mqtt.connect(BROKER_WS_URL, {
+        username: TEST_USER_ID,
+        password: TEST_MQTT_TOKEN,
+      });
+
+      // Publisher uses backend admin credentials (only devices/backend may publish telemetry)
+      const publisher = mqtt.connect(BROKER_WS_URL, {
+        username: MQTT_ADMIN_USERNAME,
+        password: MQTT_ADMIN_PASSWORD,
+      });
 
       let subscriberReady = false;
-      let publisherReady = false;
+      let publisherReady  = false;
 
       const tryPublish = () => {
         if (subscriberReady && publisherReady) {
-          publisher.publish(TOPIC, JSON.stringify(sampleTelemetry));
+          publisher.publish(topic, JSON.stringify(sampleTelemetry));
         }
       };
 
       subscriber.on('connect', () => {
-        subscriber.subscribe(TOPIC, (err) => {
+        subscriber.subscribe(topic, (err) => {
           if (err) return reject(err);
           subscriberReady = true;
           tryPublish();

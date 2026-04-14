@@ -45,6 +45,8 @@ services:
     build:
       context: ./AgroDroneBackend
       dockerfile: Dockerfile
+    ports:
+      - "8787:8787"
     volumes:
       - ./AgroDroneBackend:/app
       - /app/node_modules
@@ -78,6 +80,8 @@ services:
       - mqtt_dynsec:/mosquitto/dynamic-security
       - ./MQTT/data:/mosquitto/data
       - ./MQTT/log:/mosquitto/log
+    ports:
+      - "9001:9001"
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 1883"]
       interval: 30s

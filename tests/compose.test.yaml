@@ -17,12 +17,14 @@ services:
     build: ../AgroDrone-Edge-Node
     command: ["python", "src/flight_plan.py"]
     environment:
-      MQTT_HOST:    mqtt
-      MQTT_PORT:    1883
-      DEVICE_ID:    test-device-a
-      DEVICE_TOKEN: test-token-a
-      USER_ID:      user-a-id
-      WAYPOINT_PATH: /tmp/waypoints-a.json
+      MQTT_HOST:      mqtt
+      MQTT_PORT:      1883
+      MQTT_TRANSPORT: tcp
+      MQTT_TLS:       "false"
+      DEVICE_ID:      test-device-a
+      DEVICE_TOKEN:   test-token-a
+      USER_ID:        user-a-id
+      WAYPOINT_PATH:  /tmp/waypoints-a.json
     depends_on:
       mqtt:
         condition: service_healthy
@@ -31,12 +33,14 @@ services:
     build: ../AgroDrone-Edge-Node
     command: ["python", "src/flight_plan.py"]
     environment:
-      MQTT_HOST:    mqtt
-      MQTT_PORT:    1883
-      DEVICE_ID:    test-device-b
-      DEVICE_TOKEN: test-token-b
-      USER_ID:      user-b-id
-      WAYPOINT_PATH: /tmp/waypoints-b.json
+      MQTT_HOST:      mqtt
+      MQTT_PORT:      1883
+      MQTT_TRANSPORT: tcp
+      MQTT_TLS:       "false"
+      DEVICE_ID:      test-device-b
+      DEVICE_TOKEN:   test-token-b
+      USER_ID:        user-b-id
+      WAYPOINT_PATH:  /tmp/waypoints-b.json
     depends_on:
       mqtt:
         condition: service_healthy

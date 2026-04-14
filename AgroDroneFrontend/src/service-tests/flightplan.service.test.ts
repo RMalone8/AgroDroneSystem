@@ -17,15 +17,17 @@
 import { describe, it, expect, afterAll, beforeAll } from 'vitest';
 import mqtt from 'mqtt';
 
-const BACKEND_URL   = process.env.VITE_BACKEND_URL ?? 'http://localhost:8787';
+const BACKEND_URL   = process.env.VITE_BACKEND_URL || 'http://localhost:8787';
 const BROKER_WS_URL = 'ws://localhost:9001';
 
 const TEST_EMAIL        = process.env.TEST_USER_EMAIL    ?? 'servicetest@agrodrone.test';
 const TEST_PASSWORD     = process.env.TEST_USER_PASSWORD ?? 'ServiceTest123!';
 const TEST_ACCESS_TOKEN = process.env.TEST_ACCESS_TOKEN  ?? 'AGRO-ALPHA-TOKEN-1';
 
-// JWT obtained once at file level and shared across all describes
-let AUTH_HEADER = '';
+// JWT and MQTT credentials obtained once at file level and shared across all describes
+let AUTH_HEADER     = '';
+let TEST_USER_ID    = '';
+let TEST_MQTT_TOKEN = '';
 
 // ── One-time auth setup ───────────────────────────────────────────────────────
 // Try login first; if the account doesn't exist yet, register it.
@@ -53,8 +55,10 @@ beforeAll(async () => {
     throw new Error(`Auth setup failed: ${res.status} ${await res.text()}`);
   }
 
-  const { token } = await res.json() as { token: string };
-  AUTH_HEADER = `Bearer ${token}`;
+  const data = await res.json() as { token: string; userId: string; mqttToken: string };
+  AUTH_HEADER     = `Bearer ${data.token}`;
+  TEST_USER_ID    = data.userId;
+  TEST_MQTT_TOKEN = data.mqttToken;
 });
 
 // ── Fixed IDs so cleanup is reliable across runs ──────────────────────────────
@@ -167,10 +171,16 @@ describe('Flight plan MQTT delivery — backend publishes after POST', () => {
 
   it('delivers the saved flight plan to the flightplan MQTT topic', () =>
     new Promise<void>((resolve, reject) => {
-      const subscriber = mqtt.connect(BROKER_WS_URL);
+      const topic = `${TEST_USER_ID}/flightplan`;
+
+      // User subscribes — backend publishes to ${userId}/flightplan after a POST
+      const subscriber = mqtt.connect(BROKER_WS_URL, {
+        username: TEST_USER_ID,
+        password: TEST_MQTT_TOKEN,
+      });
 
       subscriber.on('connect', () => {
-        subscriber.subscribe('flightplan', (err) => {
+        subscriber.subscribe(topic, (err) => {
           if (err) return reject(err);
           savePlan(MQTT_MISSION_ID).catch(reject);
         });
@@ -264,10 +274,15 @@ describe('Activate flight plan — PUT /flightplan/:id/activate', () => {
 
   it('publishes the activated plan to the flightplan MQTT topic', () =>
     new Promise<void>((resolve, reject) => {
-      const subscriber = mqtt.connect(BROKER_WS_URL);
+      const topic = `${TEST_USER_ID}/flightplan`;
+
+      const subscriber = mqtt.connect(BROKER_WS_URL, {
+        username: TEST_USER_ID,
+        password: TEST_MQTT_TOKEN,
+      });
 
       subscriber.on('connect', () => {
-        subscriber.subscribe('flightplan', (err) => {
+        subscriber.subscribe(topic, (err) => {
           if (err) return reject(err);
 
           fetch(`${BACKEND_URL}/flightplan/${ACTIVATE_MQTT_ID}/activate`, {

@@ -17,7 +17,7 @@ services:
     volumes:
       - ../MQTT/mosquitto.bootstrap.conf:/mosquitto/config/mosquitto.conf
       # Start with admin-only credentials; backend provisions users at runtime
-      - ../MQTT/dynamic-security.bootstrap.json:/mosquitto/dynamic-security/dynamic-security.json
+      - ../MQTT/dynamic-security.bootstrap.json.example:/mosquitto/dynamic-security/dynamic-security.json
       - mqtt-data:/mosquitto/data
     healthcheck:
       test: ["CMD", "mosquitto_sub", "-u", "agrodrone-backend", "-P", "test-admin-pass", "-p", "1883", "-t", "$$SYS/broker/version", "-C", "1", "-W", "3"]

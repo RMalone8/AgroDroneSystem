@@ -5,12 +5,16 @@ interface EmergencyCredentials {
   mqttToken: string;
 }
 
-export function sendEmergencySignal(message: string, credentials: EmergencyCredentials) {
+export function sendEmergencySignal(message: string, credentials: EmergencyCredentials, brokerUrl?: string) {
   const { userId, mqttToken } = credentials;
   const topic = `${userId}/emergency`;
 
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  const client = mqtt.connect(`${wsProtocol}://${window.location.host}/mqtt`, {
+  const url = brokerUrl ?? (() => {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    return `${wsProtocol}://${window.location.host}/mqtt`;
+  })();
+
+  const client = mqtt.connect(url, {
     clean:    true,
     username: userId,
     password: mqttToken,
