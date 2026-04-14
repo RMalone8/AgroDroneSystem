@@ -46,7 +46,7 @@ services:
       context: ./AgroDroneBackend
       dockerfile: Dockerfile
     ports:
-      - "8787:8787"
+      - "127.0.0.1:8787:8787"
     volumes:
       - ./AgroDroneBackend:/app
       - /app/node_modules
@@ -67,6 +67,7 @@ services:
 
   mqtt:
     image: eclipse-mosquitto:latest
+    stop_grace_period: 30s
     entrypoint:
       - sh
       - -c
@@ -77,11 +78,11 @@ services:
     volumes:
       - ./MQTT/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - ./MQTT/dynamic-security.bootstrap.json:/mosquitto/bootstrap/dynamic-security.json:ro
-      - mqtt_dynsec:/mosquitto/dynamic-security
+      - ./MQTT/dynsec:/mosquitto/dynamic-security
       - ./MQTT/data:/mosquitto/data
       - ./MQTT/log:/mosquitto/log
     ports:
-      - "9001:9001"
+      - "127.0.0.1:9001:9001"
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 1883"]
       interval: 30s
@@ -112,6 +113,63 @@ services:
     restart: unless-stopped
     command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
 
+  # ── Observability stack ────────────────────────────────────────────────────
+
+  influxdb:
+    image: influxdb:2
+    ports:
+      - "127.0.0.1:8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE:         setup
+      DOCKER_INFLUXDB_INIT_USERNAME:     admin
+      DOCKER_INFLUXDB_INIT_PASSWORD:     ${INFLUXDB_ADMIN_PASSWORD:-agrodrone-influx-admin}
+      DOCKER_INFLUXDB_INIT_ORG:          agrodrone
+      DOCKER_INFLUXDB_INIT_BUCKET:       telemetry
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN:  ${INFLUXDB_TOKEN:-agrodrone-influx-token}
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  telegraf:
+    image: telegraf:1.32
+    volumes:
+      - ./MQTT/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    environment:
+      MQTT_ADMIN_PASSWORD:  ${MQTT_ADMIN_PASSWORD}
+      INFLUXDB_TOKEN:       ${INFLUXDB_TOKEN:-agrodrone-influx-token}
+    depends_on:
+      mqtt:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD:       ${GRAFANA_PASSWORD:-agrodrone}
+      GF_USERS_ALLOW_SIGN_UP:           "false"
+      GF_FEATURE_TOGGLES_ENABLE:        publicDashboards
+      INFLUXDB_TOKEN:                   ${INFLUXDB_TOKEN:-agrodrone-influx-token}
+      GF_SERVER_ROOT_URL:               "https://agrodrone.app/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH:    "true"
+      GF_AUTH_ANONYMOUS_ENABLED:        "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE:       Viewer
+      GF_SECURITY_ALLOW_EMBEDDING:      "true"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      influxdb:
+        condition: service_healthy
+
 volumes:
   wrangler_state:
-  mqtt_dynsec:
+  influxdb_data:
+  grafana_data:

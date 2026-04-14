@@ -44,6 +44,12 @@ export function AdminPanel() {
 
   const [error, setError] = useState<string | null>(null);
 
+  // ── Tab navigation ──────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<'accounts' | 'telemetry'>('accounts');
+
+  // ── Telemetry user selector ─────────────────────────────────────────────────
+  const [telemetryUserId, setTelemetryUserId] = useState('');
+
   // ── Load data ────────────────────────────────────────────────────────────────
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -57,10 +63,13 @@ export function AdminPanel() {
       const devicesData: Device[] = await devicesRes.json();
       setUsers(usersData);
       setDevices(devicesData);
-      setSelectedUserId((prev) => {
-        const clients = usersData.filter((u) => u.role === 'client');
-        return prev && clients.some((c) => c.userId === prev) ? prev : (clients[0]?.userId ?? '');
-      });
+      const clients = usersData.filter((u) => u.role === 'client');
+      setSelectedUserId((prev) =>
+        prev && clients.some((c) => c.userId === prev) ? prev : (clients[0]?.userId ?? ''),
+      );
+      setTelemetryUserId((prev) =>
+        prev && clients.some((c) => c.userId === prev) ? prev : (clients[0]?.userId ?? ''),
+      );
     } catch {
       setError('Failed to load data');
     } finally {
@@ -149,6 +158,57 @@ export function AdminPanel() {
         </button>
       </header>
 
+      {/* ── Tab navigation ── */}
+      <div className="bg-white border-b px-6">
+        <div className="flex gap-1">
+          {(['accounts', 'telemetry'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors capitalize ${
+                activeTab === tab
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === 'telemetry' ? (
+        /* ── Telemetry tab ── */
+        <div className="p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-700">Account</label>
+            {clientUsers.length === 0 ? (
+              <span className="text-sm text-gray-400">No client accounts yet.</span>
+            ) : (
+              <select
+                value={telemetryUserId}
+                onChange={(e) => setTelemetryUserId(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {clientUsers.map((c) => (
+                  <option key={c.userId} value={c.userId}>{c.email}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {telemetryUserId && (
+            <iframe
+              key={telemetryUserId}
+              src={`/grafana/d/agrodrone-telemetry?orgId=1&var-userId=${encodeURIComponent(telemetryUserId)}&kiosk=tv&theme=dark`}
+              className="w-full rounded-xl border border-gray-200"
+              style={{ height: 'calc(100vh - 160px)' }}
+              title="Telemetry Dashboard"
+            />
+          )}
+        </div>
+      ) : (
+      /* ── Accounts tab ── */
       <main className="max-w-3xl mx-auto py-10 px-6 space-y-8">
 
         {error && (
@@ -324,6 +384,7 @@ export function AdminPanel() {
         </section>
 
       </main>
+      )}
     </div>
   );
 }

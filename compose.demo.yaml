@@ -7,7 +7,7 @@
 ## Run:
 ##   docker compose -f compose.demo.yaml up --build
 ##
-## Log in at http://localhost with:
+## Log in at http://localhost:8080 with:
 ##   Email:    demo-client@agrodrone.com
 ##   Password: DemoClient1!
 ##
@@ -16,13 +16,16 @@
 ##
 ## To stop and reset:
 ##   docker compose -f compose.demo.yaml down -v
-##   (-v removes demo_shared and demo_wrangler so the next run starts clean)
+##   (-v removes demo volumes so the next run starts clean)
 ##   This does NOT affect accounts or data in the regular compose stack.
 ##
+
+name: agrodrone-demo
 
 services:
 
   mqtt:
+    container_name: demo-mqtt
     image: eclipse-mosquitto:latest
     entrypoint:
       - sh
@@ -45,6 +48,7 @@ services:
       start_period: 5s
 
   backend:
+    container_name: demo-backend
     build:
       context: ./AgroDroneBackend
       dockerfile: Dockerfile
@@ -58,7 +62,8 @@ services:
     command: >
       sh -c "npm install && npm run dev -- --ip 0.0.0.0
       --var MQTT_BROKER_URL:ws://mqtt:9001
-      --var ALLOWED_ORIGINS:http://localhost"
+      --var ALLOWED_ORIGINS:http://localhost,http://localhost:8080
+      --var VALID_ADMIN_ACCESS_TOKENS:AGRO-ADMIN-TOKEN-1"
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:8787',r=>process.exit(0)).on('error',()=>process.exit(1))\""]
       interval: 10s
@@ -67,7 +72,7 @@ services:
       start_period: 60s
 
   frontend-1:
-    container_name: frontend-1
+    container_name: demo-frontend
     build:
       context: ./AgroDroneFrontend
       dockerfile: Dockerfile
@@ -87,12 +92,66 @@ services:
       retries: 15
       start_period: 60s
 
+  influxdb:
+    container_name: demo-influxdb
+    image: influxdb:2
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE:         setup
+      DOCKER_INFLUXDB_INIT_USERNAME:     admin
+      DOCKER_INFLUXDB_INIT_PASSWORD:     agrodrone-influx-admin
+      DOCKER_INFLUXDB_INIT_ORG:          agrodrone
+      DOCKER_INFLUXDB_INIT_BUCKET:       telemetry
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN:  ${INFLUXDB_TOKEN:-agrodrone-influx-token}
+    volumes:
+      - demo_influxdb_data:/var/lib/influxdb2
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  telegraf:
+    container_name: demo-telegraf
+    image: telegraf:1.32
+    volumes:
+      - ./MQTT/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    environment:
+      MQTT_ADMIN_PASSWORD:  ${MQTT_ADMIN_PASSWORD}
+      INFLUXDB_TOKEN:       ${INFLUXDB_TOKEN:-agrodrone-influx-token}
+    depends_on:
+      mqtt:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+
+  grafana:
+    container_name: demo-grafana
+    image: grafana/grafana:11.3.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD:       ${GRAFANA_PASSWORD:-agrodrone}
+      GF_USERS_ALLOW_SIGN_UP:           "false"
+      GF_FEATURE_TOGGLES_ENABLE:        publicDashboards
+      INFLUXDB_TOKEN:                   ${INFLUXDB_TOKEN:-agrodrone-influx-token}
+      GF_SERVER_ROOT_URL:               "http://localhost:8080/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH:    "true"
+      GF_AUTH_ANONYMOUS_ENABLED:        "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE:       Viewer
+      GF_SECURITY_ALLOW_EMBEDDING:      "true"
+    volumes:
+      - demo_grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      influxdb:
+        condition: service_healthy
+
   nginx:
+    container_name: demo-nginx
     image: nginx:alpine
     ports:
-      - "80:80"
+      - "8080:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.demo.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       frontend-1:
         condition: service_healthy
@@ -100,10 +159,13 @@ services:
         condition: service_healthy
       mqtt:
         condition: service_healthy
+      grafana:
+        condition: service_started
 
   # setup and edge-node talk to backend directly over the Docker network —
   # no nginx needed since these are server-side processes, not browsers.
   setup:
+    container_name: demo-setup
     build:
       context: ./tests/e2e
     command: python setup_demo.py
@@ -115,6 +177,7 @@ services:
       - backend
 
   edge-node:
+    container_name: demo-edge-node
     build:
       context: ./AgroDrone-Edge-Node
       dockerfile: Dockerfile
@@ -133,3 +196,5 @@ volumes:
   demo_shared:
   demo_wrangler:
   demo_mqtt_dynsec:
+  demo_influxdb_data:
+  demo_grafana_data:

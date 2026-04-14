@@ -21,5 +21,10 @@ copy_if_missing AgroDroneBackend/.dev.vars.example                    AgroDroneB
 copy_if_missing AgroDroneFrontend/.env.example                        AgroDroneFrontend/.env
 copy_if_missing MQTT/dynamic-security.bootstrap.json.example          MQTT/dynamic-security.bootstrap.json
 
+echo "Setting up MQTT dynsec directory..."
+mkdir -p MQTT/dynsec
+chmod 777 MQTT/dynsec
+echo "  ready    MQTT/dynsec"
+
 echo ""
 echo "Done. You can now run: docker compose up --build"
