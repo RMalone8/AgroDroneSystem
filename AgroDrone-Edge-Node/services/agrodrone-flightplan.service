@@ -1,6 +1,7 @@
 # etc/systemd/system/agrodrone-flightplan.service
 [Unit]
 Description=AgroDrone flightplan retrieving service
+Wants=network-online.target
 After=network-online.target
 StartLimitIntervalSec=0
 

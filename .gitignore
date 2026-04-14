@@ -2,3 +2,4 @@
 MQTT/dynsec/dynamic-security.json
 MQTT/dynamic-security.bootstrap.json
 nginx/certs/
+.env

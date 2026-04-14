@@ -1,6 +1,7 @@
 # etc/systemd/system/agrodrone-telemetry.service
 [Unit]
 Description=AgroDrone telemetry sending service
+Wants=network-online.target
 After=network-online.target
 
 [Service]
