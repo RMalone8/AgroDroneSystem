@@ -7,7 +7,7 @@ services:
     volumes:
       - ./AgroDroneFrontend:/app
       - /app/node_modules
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    command: sh -c "npm run dev -- --host 0.0.0.0"
     depends_on:
       backend:
         condition: service_healthy
@@ -28,7 +28,7 @@ services:
     volumes:
       - ./AgroDroneFrontend:/app
       - /app/node_modules
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    command: sh -c "npm run dev -- --host 0.0.0.0"
     depends_on:
       backend:
         condition: service_healthy
@@ -55,7 +55,7 @@ services:
       mqtt:
         condition: service_healthy
     command: >
-      sh -c "npm install && npm run dev -- --ip 0.0.0.0
+      sh -c "npm run dev -- --ip 0.0.0.0
       --var MQTT_BROKER_URL:ws://mqtt:9001
       --var ALLOWED_ORIGINS:http://localhost,https://agrodrone.app"
     healthcheck:
