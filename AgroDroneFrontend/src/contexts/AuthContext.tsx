@@ -1,11 +1,13 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { useMode } from './ModeContext';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL as string;
 
-const TOKEN_KEY      = 'agro_token';
-const USERID_KEY     = 'agro_userId';
-const ROLE_KEY       = 'agro_role';
-const MQTT_TOKEN_KEY = 'agro_mqttToken';
+const TOKEN_KEY        = 'agro_token';
+const USERID_KEY       = 'agro_userId';
+const ROLE_KEY         = 'agro_role';
+const MQTT_TOKEN_KEY   = 'agro_mqttToken';
+const DEMO_SESSION_KEY = 'agro_demo_session_id';
 
 export type UserRole = 'admin' | 'client';
 
@@ -25,6 +27,8 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { mode, setMode } = useMode();
+
   const [auth, setAuth] = useState<AuthState>(() => ({
     token:     localStorage.getItem(TOKEN_KEY),
     userId:    localStorage.getItem(USERID_KEY),
@@ -40,13 +44,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuth({ token, userId, role, mqttToken });
   }
 
-  function logout() {
+  const logout = useCallback(() => {
+    const isDemo = mode === 'demo';
+    const sessionId = localStorage.getItem(DEMO_SESSION_KEY);
+
+    // Fire-and-forget: tell the orchestrator to clean up the session.
+    // sessionId is a random UUID so it's sufficient auth on its own here.
+    if (isDemo && sessionId) {
+      fetch(`${BACKEND_URL}/demo/end/${sessionId}`, { method: 'DELETE' }).catch(() => {});
+    }
+
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USERID_KEY);
     localStorage.removeItem(ROLE_KEY);
     localStorage.removeItem(MQTT_TOKEN_KEY);
+    localStorage.removeItem(DEMO_SESSION_KEY);
     setAuth({ token: null, userId: null, role: null, mqttToken: null });
-  }
+
+    // Demo logout → back to landing; account logout → back to login screen
+    if (isDemo) setMode(null);
+  }, [mode, setMode]);
 
   async function login(email: string, password: string) {
     const res = await fetch(`${BACKEND_URL}/auth/login`, {

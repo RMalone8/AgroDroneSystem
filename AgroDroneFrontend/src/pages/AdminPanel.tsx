@@ -39,8 +39,10 @@ export function AdminPanel() {
   const [newAccessToken,  setNewAccessToken]  = useState<string | null>(null);
 
   // ── Delete confirmation ─────────────────────────────────────────────────────
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [deleting,        setDeleting]        = useState(false);
+  const [confirmDeleteId,       setConfirmDeleteId]       = useState<string | null>(null);
+  const [deleting,              setDeleting]              = useState(false);
+  const [confirmDeleteDeviceId, setConfirmDeleteDeviceId] = useState<string | null>(null);
+  const [deletingDevice,        setDeletingDevice]        = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -132,6 +134,22 @@ export function AdminPanel() {
       setError(e.message ?? 'Failed to delete account');
     } finally {
       setDeleting(false);
+    }
+  }
+
+  // ── Delete device ────────────────────────────────────────────────────────────
+  async function handleDeleteDevice(deviceId: string) {
+    setDeletingDevice(true);
+    setError(null);
+    try {
+      const res = await authFetch(`/admin/devices/${deviceId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(await res.text());
+      setConfirmDeleteDeviceId(null);
+      refresh();
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to delete device');
+    } finally {
+      setDeletingDevice(false);
     }
   }
 
@@ -288,15 +306,45 @@ export function AdminPanel() {
                         <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                           Edge Node{userDevices.length > 1 ? 's' : ''}
                         </p>
-                        {userDevices.map((d) => (
-                          <div key={d.deviceId} className="flex items-center gap-3 text-xs font-mono text-gray-600">
-                            <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
-                            <span>{d.deviceId}</span>
-                            <span className="text-gray-400 font-sans">
-                              registered {new Date(d.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                        ))}
+                        {userDevices.map((d) => {
+                          const isConfirmingDevice = confirmDeleteDeviceId === d.deviceId;
+                          return (
+                            <div key={d.deviceId} className="flex items-center gap-3 text-xs">
+                              <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
+                              <span className="font-mono text-gray-600">{d.deviceId}</span>
+                              <span className="text-gray-400 font-sans">
+                                registered {new Date(d.createdAt).toLocaleDateString()}
+                              </span>
+                              <div className="ml-auto flex items-center gap-2 shrink-0">
+                                {isConfirmingDevice ? (
+                                  <>
+                                    <span className="text-gray-600">Delete device?</span>
+                                    <button
+                                      onClick={() => handleDeleteDevice(d.deviceId)}
+                                      disabled={deletingDevice}
+                                      className="px-2 py-0.5 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+                                    >
+                                      {deletingDevice ? 'Deleting…' : 'Yes, delete'}
+                                    </button>
+                                    <button
+                                      onClick={() => setConfirmDeleteDeviceId(null)}
+                                      className="px-2 py-0.5 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => setConfirmDeleteDeviceId(d.deviceId)}
+                                    className="text-gray-400 hover:text-red-600 transition-colors"
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
 

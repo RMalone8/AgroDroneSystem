@@ -1,11 +1,13 @@
 import { useState, FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useMode } from '../contexts/ModeContext';
 import logo from '../assets/agrodronelogo.png';
 
 type Tab = 'login' | 'register';
 
 export function LoginPage() {
   const { login, register } = useAuth();
+  const { setMode } = useMode();
   const [tab, setTab] = useState<Tab>('login');
 
   // Shared fields
@@ -138,6 +140,16 @@ export function LoginPage() {
               : (tab === 'login' ? 'Log In' : 'Create Account')}
           </button>
         </form>
+
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={() => setMode(null)}
+            className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            ← Back to home
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -8,7 +8,7 @@
  *   VITE_BACKEND_URL           — e.g. http://localhost:8787  (optional, defaults below)
  *   TEST_USER_EMAIL            — email for the test account
  *   TEST_USER_PASSWORD         — password for the test account
- *   TEST_ACCESS_TOKEN          — one of the VALID_ACCESS_TOKENS from backend .dev.vars
+ *   TEST_ACCESS_TOKEN          — a client access token issued by an admin via POST /admin/access-token
  *   TEST_MQTT_ADMIN_USERNAME   — MQTT admin username (can subscribe to any topic)
  *   TEST_MQTT_ADMIN_PASSWORD   — MQTT admin password
  *

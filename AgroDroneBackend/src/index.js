@@ -13,6 +13,7 @@ import {
   deleteUser,
   listDevicesForUser,
   listAllDevices,
+  deleteDevice,
   storeAccessToken,
   validateAndConsumeAccessToken,
 } from "./auth";
@@ -381,6 +382,34 @@ export default {
                     ? await listDevicesForUser(env.DEVICE_TOKENS_KV, targetUserId)
                     : await listAllDevices(env.DEVICE_TOKENS_KV);
                 return Response.json(devices, { headers: corsHeaders });
+            }
+
+            // Delete a single device — revokes KV token and MQTT credentials
+            if (url.pathname.startsWith("/admin/devices/") && request.method === "DELETE") {
+                const deviceId = url.pathname.split("/")[3];
+                if (!deviceId) return new Response("Missing deviceId", { status: 400, headers: corsHeaders });
+
+                // Remove KV record (invalidates backend API auth)
+                await deleteDevice(env.DEVICE_TOKENS_KV, deviceId);
+
+                // Remove Mosquitto Dynamic Security client + role (invalidates MQTT auth)
+                if (env.MQTT_BROKER_HOST) {
+                    try {
+                        await publishDynsecCommand(
+                            env.MQTT_BROKER_HOST, env.MQTT_BROKER_PORT ?? 1883,
+                            env.MQTT_ADMIN_USERNAME, env.MQTT_ADMIN_PASSWORD,
+                            [
+                                { command: "deleteClient", username: `device-${deviceId}` },
+                                { command: "deleteRole",   rolename: `device-${deviceId}` },
+                            ],
+                        );
+                    } catch (e) {
+                        console.error("Dynsec device delete failed:", e.message);
+                        // KV already cleaned up — log and continue (device can no longer hit backend)
+                    }
+                }
+
+                return new Response(null, { status: 204, headers: corsHeaders });
             }
         }
 

@@ -18,14 +18,22 @@ import {
 import { AgroDroneMap } from './components/map/AgroDroneMap.tsx';
 import { TabType, MissionMeta, SensorFlightPlan, SensorImage } from './constants/types.ts';
 import { useAuth } from './contexts/AuthContext.tsx';
+import { useMode } from './contexts/ModeContext.tsx';
+import { LandingPage } from './pages/LandingPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
+import { DemoLoader } from './pages/DemoLoader.tsx';
 import { AdminPanel } from './pages/AdminPanel.tsx';
 import { authFetch } from './utils/api.ts';
 
-// Auth gate — renders LoginPage when logged out, AdminPanel for admins, AppContent for clients
+// Auth gate — shows LandingPage, LoginPage, DemoLoader, AdminPanel, or the main app
 export default function App() {
   const { token, role } = useAuth();
-  if (!token) return <LoginPage />;
+  const { mode } = useMode();
+  if (!token) {
+    if (!mode)           return <LandingPage />;
+    if (mode === 'demo') return <DemoLoader />;
+    return <LoginPage />;
+  }
   if (role === 'admin') return <AdminPanel />;
   return <AppContent />;
 }

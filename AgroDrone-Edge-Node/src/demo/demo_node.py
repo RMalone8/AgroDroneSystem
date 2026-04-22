@@ -27,11 +27,13 @@ import waypoints
 
 import paho.mqtt.client as mqtt
 
-SHARED_PATH  = "/shared/demo_credentials.json"
-MQTT_HOST    = os.getenv("MQTT_HOST", "mqtt")
-MQTT_PORT    = int(os.getenv("MQTT_PORT", 1883))
-BACKEND_URL  = os.getenv("BACKEND_URL", "http://localhost:8787")
-DATA_PATH    = os.getenv("DATA_PATH", "")
+SHARED_PATH         = "/shared/demo_credentials.json"
+MQTT_HOST           = os.getenv("MQTT_HOST", "mqtt")
+MQTT_PORT           = int(os.getenv("MQTT_PORT", 1883))
+BACKEND_URL         = os.getenv("BACKEND_URL", "http://localhost:8787")
+DATA_PATH           = os.getenv("DATA_PATH", "")
+DEMO_SESSION_ID     = os.getenv("DEMO_SESSION_ID", "")
+DEMO_ORCHESTRATOR_URL = os.getenv("DEMO_ORCHESTRATOR_URL", "")
 
 BASE_LAT = 42.3551
 BASE_LON = -71.0656
@@ -209,12 +211,22 @@ def _upload_mock_images(fpid, mid, waypoints_list, device_token, device_id):
 
 
 def main():
-    with open(SHARED_PATH) as f:
-        creds = json.load(f)
+    # Prefer env-var credentials (injected per-session by the orchestrator);
+    # fall back to the shared credentials file for standalone demo usage.
+    env_user_id      = os.getenv("DEMO_USER_ID", "")
+    env_device_id    = os.getenv("DEMO_DEVICE_ID", "")
+    env_device_token = os.getenv("DEMO_DEVICE_TOKEN", "")
 
-    user_id      = creds["userId"]
-    device_id    = creds["deviceId"]
-    device_token = creds["deviceToken"]
+    if env_user_id and env_device_id and env_device_token:
+        user_id      = env_user_id
+        device_id    = env_device_id
+        device_token = env_device_token
+    else:
+        with open(SHARED_PATH) as f:
+            creds = json.load(f)
+        user_id      = creds["userId"]
+        device_id    = creds["deviceId"]
+        device_token = creds["deviceToken"]
     topic        = f"{user_id}/telemetry"
     fp_topic     = f"{user_id}/flightplan"
 
@@ -227,6 +239,16 @@ def main():
             c.subscribe(fp_topic)
             c.subscribe(em_topic)
             print(f"Connected to broker, subscribed to {fp_topic} and {em_topic}")
+            # Notify the demo orchestrator that this edge node is ready
+            if DEMO_SESSION_ID and DEMO_ORCHESTRATOR_URL:
+                try:
+                    requests.post(
+                        f"{DEMO_ORCHESTRATOR_URL}/demo/ready/{DEMO_SESSION_ID}",
+                        timeout=5,
+                    )
+                    print(f"Notified orchestrator: session {DEMO_SESSION_ID} ready")
+                except Exception as e:
+                    print(f"Warning: could not notify orchestrator: {e}")
         else:
             print(f"MQTT connection refused rc={rc}")
 

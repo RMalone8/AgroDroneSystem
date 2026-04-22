@@ -225,6 +225,10 @@ export async function listAllDevices(kv) {
   return devices;
 }
 
+export async function deleteDevice(kv, deviceId) {
+  await kv.delete(`device:${deviceId}`);
+}
+
 // ── Access token management (pre-issued tokens for account creation) ──────────
 // KV key: "access_token:{value}"  →  { role, usedAt? }
 

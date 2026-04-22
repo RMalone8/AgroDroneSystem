@@ -98,10 +98,10 @@ services:
     environment:
       DOCKER_INFLUXDB_INIT_MODE:         setup
       DOCKER_INFLUXDB_INIT_USERNAME:     admin
-      DOCKER_INFLUXDB_INIT_PASSWORD:     agrodrone-influx-admin
+      DOCKER_INFLUXDB_INIT_PASSWORD:     ${INFLUXDB_ADMIN_PASSWORD}
       DOCKER_INFLUXDB_INIT_ORG:          agrodrone
       DOCKER_INFLUXDB_INIT_BUCKET:       telemetry
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN:  ${INFLUXDB_TOKEN:-agrodrone-influx-token}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN:  ${INFLUXDB_TOKEN}
     volumes:
       - demo_influxdb_data:/var/lib/influxdb2
     healthcheck:
@@ -118,7 +118,7 @@ services:
       - ./MQTT/telegraf.conf:/etc/telegraf/telegraf.conf:ro
     environment:
       MQTT_ADMIN_PASSWORD:  ${MQTT_ADMIN_PASSWORD}
-      INFLUXDB_TOKEN:       ${INFLUXDB_TOKEN:-agrodrone-influx-token}
+      INFLUXDB_TOKEN:       ${INFLUXDB_TOKEN}
     depends_on:
       mqtt:
         condition: service_healthy
@@ -129,10 +129,10 @@ services:
     container_name: demo-grafana
     image: grafana/grafana:11.3.0
     environment:
-      GF_SECURITY_ADMIN_PASSWORD:       ${GRAFANA_PASSWORD:-agrodrone}
+      GF_SECURITY_ADMIN_PASSWORD:       ${GRAFANA_PASSWORD}
       GF_USERS_ALLOW_SIGN_UP:           "false"
       GF_FEATURE_TOGGLES_ENABLE:        publicDashboards
-      INFLUXDB_TOKEN:                   ${INFLUXDB_TOKEN:-agrodrone-influx-token}
+      INFLUXDB_TOKEN:                   ${INFLUXDB_TOKEN}
       GF_SERVER_ROOT_URL:               "http://localhost:8080/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH:    "true"
       GF_AUTH_ANONYMOUS_ENABLED:        "true"

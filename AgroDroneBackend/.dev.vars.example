@@ -6,14 +6,15 @@ MQTT_BROKER_PORT=1883
 MQTT_ADMIN_USERNAME=agrodrone-backend
 MQTT_ADMIN_PASSWORD=test-admin-pass
 
-# JWT signing secret — use a long random string in production
+# JWT signing secret — use a long random string in production.
 # Generate one with: openssl rand -hex 32
 JWT_SECRET=dev-only-secret-replace-before-deploying-to-production
 
-# Comma-separated list of valid access tokens for new CLIENT account creation.
-# In production, these are issued by admins via POST /admin/access-token.
-VALID_ACCESS_TOKENS=AGRO-ALPHA-TOKEN-1,AGRO-ALPHA-TOKEN-2,AGRO-ALPHA-TOKEN-3
-
 # Comma-separated list of valid access tokens for ADMIN account creation.
 # Keep these secret — only share with AgroDrone staff.
+#
+# In production (compose.yaml) this is set via:
+#   --var VALID_ADMIN_ACCESS_TOKENS:${VALID_ADMIN_ACCESS_TOKENS},${DEMO_ADMIN_ACCESS_TOKEN}
+# which appends the demo admin token to whatever you have in the root .env.
+# For local dev, add your DEMO_ADMIN_ACCESS_TOKEN value here if testing demo mode.
 VALID_ADMIN_ACCESS_TOKENS=AGRO-ADMIN-TOKEN-1,AGRO-ADMIN-TOKEN-2
