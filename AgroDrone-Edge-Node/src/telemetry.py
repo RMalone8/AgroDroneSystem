@@ -97,6 +97,27 @@ def main():
 
     mqtt_client = connect_mqtt()
 
+    base_station_pos = None
+    gps_lock = threading.Lock()
+
+    def base_station_publisher():
+        nonlocal base_station_pos
+        while True:
+            pos = get_gps_position()
+            with gps_lock:
+                if pos:
+                    base_station_pos = pos
+                elif base_station_pos is None:
+                    base_station_pos = [42.34899, -71.10590]
+                current_pos = base_station_pos
+            if current_pos:
+                payload = {"base_station_position": current_pos, "timestamp": time.time()}
+                mqtt_client.publish(TOPIC, json.dumps(payload))
+                print(f"Base station position published: {current_pos}")
+            time.sleep(60)
+
+    threading.Thread(target=base_station_publisher, daemon=True).start()
+
     print(f"Connecting to radio on {DEVICE_NAME} at {BAUD_RATE} baud...")
     try:
         connection = mavutil.mavlink_connection(DEVICE_NAME, baud=BAUD_RATE)
@@ -126,8 +147,6 @@ def main():
 
     changed_since_publish = False
     last_publish = time.time()
-    last_gps_check = 0.0
-    base_station_pos = None
 
     while True:
         msg = connection.recv_match(blocking=False)
@@ -156,22 +175,14 @@ def main():
 
             changed_since_publish = True
 
-        # Refresh GPS position every 30 seconds
-        now = time.time()
-        if now - last_gps_check > 30:
-            pos = get_gps_position()
-            if pos:
-                base_station_pos = pos
-            else:
-                base_station_pos = [42.34899, -71.10590]
-            last_gps_check = now
-
         # Publish at 5 Hz when data has changed
+        now = time.time()
         if now - last_publish > 0.2 and changed_since_publish:
             data["timestamp"] = now
             payload = dict(data)
-            if base_station_pos:
-                payload["base_station_position"] = base_station_pos
+            with gps_lock:
+                if base_station_pos:
+                    payload["base_station_position"] = base_station_pos
 
             mqtt_client.publish(TOPIC, json.dumps(payload))
             last_publish = now
