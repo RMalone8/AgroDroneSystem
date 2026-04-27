@@ -29,14 +29,25 @@ RC_MESSAGES = {
     5: "not authorised",
 }
 
+GPS_TIMEOUT = int(os.getenv("GPS_TIMEOUT", 15))
+
+
 def get_gps_position():
-    """Return [lat, lng] from gpsd, or None if no fix or daemon unreachable."""
+    """Return [lat, lng] from gpsd, or None if no fix within GPS_TIMEOUT seconds.
+
+    gpsd stops streaming when no client is connected. After sending WATCH,
+    we poll until the daemon has a valid fix rather than reading one packet
+    and giving up immediately.
+    """
     try:
         gpsd.connect()
-        packet = gpsd.get_current()
-        if packet.mode < 2:
-            return None
-        return [round(packet.lat, 7), round(packet.lon, 7)]
+        deadline = time.time() + GPS_TIMEOUT
+        while time.time() < deadline:
+            packet = gpsd.get_current()
+            if packet.mode >= 2:
+                return [round(packet.lat, 7), round(packet.lon, 7)]
+            time.sleep(0.5)
+        return None
     except Exception:
         return None
 

@@ -52,16 +52,29 @@ RC_MESSAGES = {
 }
 
 
+GPS_TIMEOUT = int(os.getenv("GPS_TIMEOUT", 15))
+
+
 def get_gps_position():
-    """Return (lat, lon, alt_msl) from gpsd, or None if no 3-D fix."""
+    """Return (lat, lon, alt_msl) from gpsd, or None if no fix within GPS_TIMEOUT seconds.
+
+    gpsd stops streaming when no client is connected. After sending WATCH,
+    we poll until the daemon has a valid fix rather than reading one packet
+    and giving up immediately.
+    """
     try:
         gpsd.connect(host=GPSD_HOST, port=GPSD_PORT)
-        packet = gpsd.get_current()
-        if packet.mode < 2:
-            print(f"gpsd: no fix (mode={packet.mode})", file=sys.stderr)
-            return None
-        alt = getattr(packet, "alt", None)
-        return (round(packet.lat, 7), round(packet.lon, 7), round(alt, 2) if alt is not None else None)
+        deadline = time.time() + GPS_TIMEOUT
+        while time.time() < deadline:
+            packet = gpsd.get_current()
+            if packet.mode >= 2:
+                alt = getattr(packet, "alt", None)
+                return (round(packet.lat, 7), round(packet.lon, 7), round(alt, 2) if alt is not None else None)
+            remaining = deadline - time.time()
+            print(f"gpsd: waiting for fix (mode={packet.mode}, {remaining:.0f}s left)...", file=sys.stderr)
+            time.sleep(0.5)
+        print(f"gpsd: timed out after {GPS_TIMEOUT}s waiting for fix.", file=sys.stderr)
+        return None
     except Exception as e:
         print(f"gpsd error: {e}", file=sys.stderr)
         return None
