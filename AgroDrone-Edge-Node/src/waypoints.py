@@ -253,4 +253,4 @@ def create_waypoints(data):
     print("Final altitude:", altitude)
     print("Final filtered waypoints:", len(waypoints_filtered))
 
-    return {"waypoints": waypoints_filtered, "totalWaypoints": len(waypoints_filtered)}
+    return {"waypoints": waypoints_filtered, "totalWaypoints": len(waypoints_filtered), "altitude": altitude}

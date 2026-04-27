@@ -55,6 +55,7 @@ function AppContent() {
   const [visitedOrders, setVisitedOrders] = useState<Set<number>>(new Set());
   const wasFlyingRef = useRef(false);
   const airborneWaypointFetchedRef = useRef(false);
+  const waypointDwellRef = useRef<Map<number, number>>(new Map());
   const [sensorData, setSensorData] = useState<SensorFlightPlan[]>([]);
   const [activeSensorMission, setActiveSensorMission] = useState<{ fpid: string; mid: string } | null>(null);
   const [sensorImages, setSensorImages] = useState<SensorImage[]>([]);
@@ -159,26 +160,46 @@ function AppContent() {
     }
   }, [droneData.altRel]);
 
-  // Mark waypoints as visited only when the drone is hovering on top of one (vx≈0, vy≈0).
+  // Mark waypoints as visited only when the drone has been hovering above 25 m
+  // on top of one (vx≈0, vy≈0) for at least 3 seconds. The altitude gate
+  // prevents the takeoff climb (which passes over the first waypoint coords)
+  // from triggering a false positive.
   useEffect(() => {
-    if (!waypoints.length || (droneData.altRel ?? 0) <= 0) return;
+    if (!waypoints.length || (droneData.altRel ?? 0) < 25) {
+      waypointDwellRef.current.clear();
+      return;
+    }
     const vx = Number(droneData.velocity?.[0] ?? 1);
     const vy = Number(droneData.velocity?.[1] ?? 1);
-    if (Math.abs(vx) > 0.1 || Math.abs(vy) > 0.1) return;
+    if (Math.abs(vx) > 0.1 || Math.abs(vy) > 0.1) {
+      waypointDwellRef.current.clear();
+      return;
+    }
     const dLat = Number(droneData.droneLat);
     const dLng = Number(droneData.droneLng);
     if (!dLat || !dLng) return;
+    const now = Date.now();
     setVisitedOrders(prev => {
       const next = new Set(prev);
       waypoints.forEach(wp => {
         if (prev.has(wp.order)) return;
         const dNorth = (wp.lat - dLat) * 111111;
         const dEast  = (wp.lng - dLng) * 111111 * Math.cos(dLat * Math.PI / 180);
-        if (Math.sqrt(dNorth ** 2 + dEast ** 2) < 15) next.add(wp.order);
+        const inRange = Math.sqrt(dNorth ** 2 + dEast ** 2) < 15;
+        if (inRange) {
+          if (!waypointDwellRef.current.has(wp.order)) {
+            waypointDwellRef.current.set(wp.order, now);
+          } else if (now - waypointDwellRef.current.get(wp.order)! >= 3000) {
+            next.add(wp.order);
+            waypointDwellRef.current.delete(wp.order);
+          }
+        } else {
+          waypointDwellRef.current.delete(wp.order);
+        }
       });
       return next;
     });
-  }, [droneData.velocity]);
+  }, [droneData.velocity, droneData.altRel]);
 
   const handleSelectSensorMission = async (fpid: string, mid: string) => {
     setActiveSensorMission({ fpid, mid });

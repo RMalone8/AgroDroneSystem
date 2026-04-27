@@ -46,6 +46,7 @@ def on_message(_client, _userdata, msg):
             json.dump({
                 "fpid": data["fpid"],
                 "createdAt": data["createdAt"],
+                "altitude": result["altitude"],
                 "totalWaypoints": result["totalWaypoints"],
                 "waypoints": result["waypoints"]
             }, f, indent=4)
