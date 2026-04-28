@@ -1,9 +1,10 @@
+import os
 import cv2
 import numpy as np
 
 MAX_NUM_FEATURES = 500
 
-def register_images(rgb_path, nir_path, num_image):
+def register_images(rgb_path, nir_path, num_image, out_dir="data/aligned"):
     '''
     Function that warps image 2 to the perspective of image 1.
     Image 1 should always be the RGB image.
@@ -52,7 +53,8 @@ def register_images(rgb_path, nir_path, num_image):
     height, width = im1.shape[:2]
     im2_reg = cv2.warpAffine(im2, M, (width, height))
 
-    out_path = f"data/aligned/output_test_align_{num_image}.jpg"
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = f"{out_dir}/aligned_{num_image}.jpg"
 
     cv2.imwrite(out_path, im2_reg)
 

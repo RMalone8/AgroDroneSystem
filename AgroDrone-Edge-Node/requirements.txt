@@ -15,3 +15,4 @@ opencv-python
 Pillow
 plotly
 pandas
+matplotlib
