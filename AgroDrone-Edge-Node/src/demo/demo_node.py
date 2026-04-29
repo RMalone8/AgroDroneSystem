@@ -139,11 +139,15 @@ def simulate_flight(client, topic, tel, wp_list, emergency) -> bool:
                 break
             navigate_to(client, topic, tel, wp["lat"], wp["lng"], emergency)
             if not emergency.is_set():
-                # Hover at waypoint for one telemetry update
+                # Hover at waypoint — must be stationary for 4 s so the frontend
+                # 3-second dwell check has time to fire before we move on.
                 tel["vx"] = 0.0
                 tel["vy"] = 0.0
-                publish(client, topic, tel)
-                time.sleep(1.0)
+                for _ in range(4):
+                    if emergency.is_set():
+                        break
+                    publish(client, topic, tel)
+                    time.sleep(1.0)
     else:
         all_visited = False
 
