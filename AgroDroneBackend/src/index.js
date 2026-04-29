@@ -497,53 +497,61 @@ export default {
             }
         }
 
-        // ── Sensor data retrieval routes ──────────────────────────────────────
+        // ── Mosaic / NDVI image routes ────────────────────────────────────────
+        // GET  /mosaic/all                        — overview of all missions across all flight plans
+        // POST /mosaic                            — upload one NDVI PNG + geo metadata (device only)
+        // GET  /mosaic?fpid=&mid=                 — list all images for a mission with geo data
+        // GET  /mosaic?fpid=&mid=&index=N         — fetch the PNG bytes for a single image
 
-        if (url.pathname === "/sensor/all" && request.method === "GET") {
+        if (url.pathname === "/mosaic/all" && request.method === "GET") {
             const data = await storage.getAllSensorData(env, userId);
             return Response.json(data, { headers: corsHeaders });
         }
 
-        if (url.pathname === "/sensor/mission" && request.method === "GET") {
-            const fpid = url.searchParams.get("fpid");
-            const mid  = url.searchParams.get("mid");
-            if (!fpid || !mid) return new Response("Missing params", { status: 400, headers: corsHeaders });
-            const meta = await storage.getMissionMetadata(env, userId, fpid, mid);
-            if (!meta) return new Response("Not Found", { status: 404, headers: corsHeaders });
-            return Response.json(meta, { headers: corsHeaders });
-        }
+        if (url.pathname === "/mosaic") {
 
-        if (url.pathname === "/sensor/image" && request.method === "GET") {
-            const fpid  = url.searchParams.get("fpid");
-            const mid   = url.searchParams.get("mid");
-            const index = parseInt(url.searchParams.get("index") ?? "0", 10);
-            if (!fpid || !mid) return new Response("Missing params", { status: 400, headers: corsHeaders });
-            const obj = await storage.getSensorImageFile(env, userId, fpid, mid, index);
-            if (!obj) return new Response("Not Found", { status: 404, headers: corsHeaders });
-            return new Response(obj.body, {
-                headers: { ...corsHeaders, "Content-Type": "image/jpeg" }
-            });
-        }
-
-        // ── Sensor image routes ───────────────────────────────────────────────
-
-        if (url.pathname === "/sensor-image" && request.method === "POST") {
-            const form = await request.formData();
-            const imageFile = form.get("image");
-            const fpid      = form.get("fpid");
-            const mid       = form.get("mid");
-            const index     = parseInt(form.get("index") ?? "0", 10);
-            const lat       = parseFloat(form.get("lat") ?? "0");
-            const lng       = parseFloat(form.get("lng") ?? "0");
-            const heading   = parseFloat(form.get("heading") ?? "0");
-            const altitude  = parseFloat(form.get("altitude") ?? "0");
-            const timestamp = form.get("timestamp") ?? new Date().toISOString();
-            if (!fpid || !mid || !imageFile) {
-                return new Response("Missing fields", { status: 400, headers: corsHeaders });
+            if (request.method === "POST") {
+                if (userRole !== 'device') {
+                    return new Response("Forbidden", { status: 403, headers: corsHeaders });
+                }
+                const form      = await request.formData();
+                const imageFile = form.get("image");
+                const fpid      = form.get("fpid");
+                const mid       = form.get("mid");
+                const index     = parseInt(form.get("index") ?? "0", 10);
+                const lat       = parseFloat(form.get("lat") ?? "0");
+                const lng       = parseFloat(form.get("lng") ?? "0");
+                const heading   = parseFloat(form.get("heading") ?? "0");
+                const altitude  = parseFloat(form.get("altitude") ?? "0");
+                const timestamp = form.get("timestamp") ?? new Date().toISOString();
+                if (!fpid || !mid || !imageFile) {
+                    return new Response("Missing fields", { status: 400, headers: corsHeaders });
+                }
+                await storage.sensorImageUpload(env, userId, fpid, mid, index, imageFile,
+                    { lat, lng, heading, altitude, timestamp });
+                return new Response("Mosaic image saved", { headers: corsHeaders });
             }
-            await storage.sensorImageUpload(env, userId, fpid, mid, index, imageFile,
-                { lat, lng, heading, altitude, timestamp });
-            return new Response("Sensor image saved", { headers: corsHeaders });
+
+            if (request.method === "GET") {
+                const fpid = url.searchParams.get("fpid");
+                const mid  = url.searchParams.get("mid");
+                if (!fpid || !mid) return new Response("Missing params", { status: 400, headers: corsHeaders });
+
+                const indexParam = url.searchParams.get("index");
+                if (indexParam !== null) {
+                    // Return the PNG bytes for a single image
+                    const obj = await storage.getSensorImageFile(env, userId, fpid, mid, parseInt(indexParam, 10));
+                    if (!obj) return new Response("Not Found", { status: 404, headers: corsHeaders });
+                    return new Response(obj.body, {
+                        headers: { ...corsHeaders, "Content-Type": "image/png" }
+                    });
+                }
+
+                // Return [{index, lat, lng, heading, altitude, timestamp}, ...]
+                const meta = await storage.getMissionMetadata(env, userId, fpid, mid);
+                if (!meta) return new Response("Not Found", { status: 404, headers: corsHeaders });
+                return Response.json(meta.images ?? [], { headers: corsHeaders });
+            }
         }
 
     }

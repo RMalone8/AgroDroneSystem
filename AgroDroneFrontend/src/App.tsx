@@ -205,10 +205,10 @@ function AppContent() {
     setActiveSensorMission({ fpid, mid });
     setSensorImages([]);
     try {
-      const meta = await authFetch(`/sensor/mission?fpid=${fpid}&mid=${mid}`).then(r => r.json());
+      const meta = await authFetch(`/mosaic?fpid=${fpid}&mid=${mid}`).then(r => r.json());
       const images: SensorImage[] = await Promise.all(
-        (meta.images ?? []).map(async (img: any) => {
-          const r = await authFetch(`/sensor/image?fpid=${fpid}&mid=${mid}&index=${img.index}`);
+        (meta ?? []).map(async (img: any) => {
+          const r = await authFetch(`/mosaic?fpid=${fpid}&mid=${mid}&index=${img.index}`);
           const blob = await r.blob();
           return { ...img, url: URL.createObjectURL(blob) };
         })
@@ -226,7 +226,7 @@ function AppContent() {
     if (tab === 'sensor' && !hasLoadedSensorData.current) {
       hasLoadedSensorData.current = true;
       try {
-        const d = await authFetch('/sensor/all').then(r => r.json());
+        const d = await authFetch('/mosaic/all').then(r => r.json());
         // Only show flight plans that have at least one mission, sorted newest-first
         const plans: SensorFlightPlan[] = (d.flightPlans ?? [])
           .filter((fp: SensorFlightPlan) => fp.missions.length > 0)

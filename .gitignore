@@ -3,3 +3,5 @@ MQTT/dynsec/dynamic-security.json
 MQTT/dynamic-security.bootstrap.json
 nginx/certs/
 .env
+seed_mission.py
+AgroDrone-Edge-Node/src/test_pair.py

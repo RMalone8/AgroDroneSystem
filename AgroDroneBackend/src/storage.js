@@ -210,10 +210,9 @@ export default {
     },
 
     async sensorImageUpload(env, userId, fpid, mid, index, imageContent, imageMeta) {
-        // Store the compressed NDVI image
-        const imagePath = `data/${userId}/fp/${fpid}/${mid}/${index}_ndvi.jpg`;
+        const imagePath = `data/${userId}/fp/${fpid}/${mid}/${index}_ndvi.png`;
         await env.BUCKET.put(imagePath, imageContent, {
-            httpMetadata: { contentType: "image/jpeg" }
+            httpMetadata: { contentType: "image/png" }
         });
 
         // Check if this mission already has a .metadata file
@@ -281,7 +280,7 @@ export default {
     },
 
     async getSensorImageFile(env, userId, fpid, mid, index) {
-        const path = `data/${userId}/fp/${fpid}/${mid}/${index}_ndvi.jpg`;
+        const path = `data/${userId}/fp/${fpid}/${mid}/${index}_ndvi.png`;
         return await env.BUCKET.get(path);
     },
 

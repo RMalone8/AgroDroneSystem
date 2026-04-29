@@ -3,7 +3,7 @@
 Description=Trigger for processing the image data and sending it to the cloud
 
 [Path]
-PathChanged=/home/sr-design/system/flightplans/
+PathChanged=/tmp/process_start.json
 
 [Install]
 WantedBy=multi-user.target
