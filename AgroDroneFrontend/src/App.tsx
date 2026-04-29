@@ -189,7 +189,7 @@ function AppContent() {
         if (inRange) {
           if (!waypointDwellRef.current.has(wp.order)) {
             waypointDwellRef.current.set(wp.order, now);
-          } else if (now - waypointDwellRef.current.get(wp.order)! >= 3000) {
+          } else if (now - waypointDwellRef.current.get(wp.order)! >= 1000) {
             next.add(wp.order);
             waypointDwellRef.current.delete(wp.order);
           }
