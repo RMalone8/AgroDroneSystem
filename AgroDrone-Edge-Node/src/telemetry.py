@@ -107,8 +107,6 @@ def main():
             with gps_lock:
                 if pos:
                     base_station_pos = pos
-                elif base_station_pos is None:
-                    base_station_pos = [42.34899, -71.10590]
                 current_pos = base_station_pos
             if current_pos:
                 payload = {"base_station_position": current_pos, "timestamp": time.time()}

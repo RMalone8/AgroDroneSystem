@@ -238,11 +238,41 @@ export default {
             missionMeta = await existing.json();
         }
 
-        // Append this image's entry to the mission metadata
-        missionMeta.images.push({ index, path: imagePath, ...imageMeta });
+        // Upsert by index — replace existing entry if re-uploaded, otherwise append
+        const existing_idx = missionMeta.images.findIndex(img => img.index === index);
+        if (existing_idx >= 0) {
+            missionMeta.images[existing_idx] = { index, path: imagePath, ...imageMeta };
+        } else {
+            missionMeta.images.push({ index, path: imagePath, ...imageMeta });
+        }
         await env.BUCKET.put(missionMetaPath, JSON.stringify(missionMeta), {
             httpMetadata: { contentType: "application/json" }
         });
+    },
+
+    async deleteMission(env, userId, fpid, mid) {
+        const prefix = `data/${userId}/fp/${fpid}/${mid}/`;
+
+        // Delete every R2 object under this mission prefix
+        let cursor;
+        do {
+            const listed = await env.BUCKET.list({ prefix, cursor });
+            await Promise.all(listed.objects.map(obj => env.BUCKET.delete(obj.key)));
+            cursor = listed.truncated ? listed.cursor : undefined;
+        } while (cursor);
+
+        // Remove this mid from the flight plan's mission list
+        const fpMetaPath = `data/${userId}/fp/${fpid}/.metadata`;
+        const fpMetaObj = await env.BUCKET.get(fpMetaPath);
+        if (fpMetaObj) {
+            const fpMeta = await fpMetaObj.json();
+            if (fpMeta.missions) {
+                fpMeta.missions = fpMeta.missions.filter(m => m.mid !== mid);
+                await env.BUCKET.put(fpMetaPath, JSON.stringify(fpMeta), {
+                    httpMetadata: { contentType: "application/json" }
+                });
+            }
+        }
     },
 
     async getAllSensorData(env, userId) {

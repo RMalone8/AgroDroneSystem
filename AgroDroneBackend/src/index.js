@@ -510,6 +510,14 @@ export default {
 
         if (url.pathname === "/mosaic") {
 
+            if (request.method === "DELETE") {
+                const fpid = url.searchParams.get("fpid");
+                const mid  = url.searchParams.get("mid");
+                if (!fpid || !mid) return new Response("Missing params", { status: 400, headers: corsHeaders });
+                await storage.deleteMission(env, userId, fpid, mid);
+                return new Response("Mission deleted", { headers: corsHeaders });
+            }
+
             if (request.method === "POST") {
                 if (userRole !== 'device') {
                     return new Response("Forbidden", { status: 403, headers: corsHeaders });

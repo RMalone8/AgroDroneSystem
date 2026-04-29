@@ -133,7 +133,7 @@ export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStation
       ))}
 
       {/* Sensor image overlays — visible on sensor tab */}
-      {sensorImages?.map(img => {
+      {sensorImages?.filter((img, i, arr) => arr.findIndex(x => x.index === img.index) === i).map(img => {
         const corners = computeImageCorners(img.lat, img.lng, img.heading, img.altitude);
         return (
           <Source
