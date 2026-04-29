@@ -113,7 +113,7 @@ export function computeImageCorners(
   const camH = 2 * altitude * Math.tan((VFOV / 2) * Math.PI / 180);
   const degPerMLat = 1 / 111111;
   const degPerMLng = 1 / (111111 * Math.cos(lat * Math.PI / 180));
-  const h = heading * Math.PI / 180;
+  const h = (heading + 180) * Math.PI / 180;
   const halfW = camW / 2, halfH = camH / 2;
   // forward unit: (cos h, sin h) in (dlat, dlng); right unit: (sin h, cos h) rotated
   const fLat = Math.cos(h) * halfH * degPerMLat;
