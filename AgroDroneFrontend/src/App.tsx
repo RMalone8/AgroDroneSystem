@@ -165,40 +165,55 @@ function AppContent() {
   // prevents the takeoff climb (which passes over the first waypoint coords)
   // from triggering a false positive.
   useEffect(() => {
-    if (!waypoints.length || (droneData.altRel ?? 0) < 25) {
+    const alt = droneData.altRel ?? 0;
+    const vx  = Number(droneData.velocity?.[0] ?? 1);
+    const vy  = Number(droneData.velocity?.[1] ?? 1);
+    console.log('[WP] effect fired — waypoints:', waypoints.length, 'alt:', alt, 'vx:', vx, 'vy:', vy);
+
+    if (!waypoints.length || alt < 25) {
       waypointDwellRef.current.clear();
+      console.log('[WP] skipped — no waypoints or alt too low');
       return;
     }
-    const vx = Number(droneData.velocity?.[0] ?? 1);
-    const vy = Number(droneData.velocity?.[1] ?? 1);
     if (Math.abs(vx) > 0.1 || Math.abs(vy) > 0.1) {
       waypointDwellRef.current.clear();
+      console.log('[WP] skipped — drone moving');
       return;
     }
     const dLat = Number(droneData.droneLat);
     const dLng = Number(droneData.droneLng);
     if (!dLat || !dLng) return;
     const now = Date.now();
-    setVisitedOrders(prev => {
-      const next = new Set(prev);
-      waypoints.forEach(wp => {
-        if (prev.has(wp.order)) return;
-        const dNorth = (wp.lat - dLat) * 111111;
-        const dEast  = (wp.lng - dLng) * 111111 * Math.cos(dLat * Math.PI / 180);
-        const inRange = Math.sqrt(dNorth ** 2 + dEast ** 2) < 15;
-        if (inRange) {
-          if (!waypointDwellRef.current.has(wp.order)) {
-            waypointDwellRef.current.set(wp.order, now);
-          } else if (now - waypointDwellRef.current.get(wp.order)! >= 1000) {
-            next.add(wp.order);
-            waypointDwellRef.current.delete(wp.order);
-          }
-        } else {
+
+    // Compute which waypoints just completed their dwell — mutate the ref here,
+    // outside the state updater, so the updater stays pure (StrictMode calls it twice).
+    const newlyVisited: number[] = [];
+    waypoints.forEach(wp => {
+      const dNorth = (wp.lat - dLat) * 111111;
+      const dEast  = (wp.lng - dLng) * 111111 * Math.cos(dLat * Math.PI / 180);
+      const dist   = Math.sqrt(dNorth ** 2 + dEast ** 2);
+      const inRange = dist < 15;
+      console.log(`[WP] wp#${wp.order} dist=${dist.toFixed(1)}m inRange=${inRange} dwellMs=${waypointDwellRef.current.has(wp.order) ? now - waypointDwellRef.current.get(wp.order)! : 'none'}`);
+      if (inRange) {
+        if (!waypointDwellRef.current.has(wp.order)) {
+          waypointDwellRef.current.set(wp.order, now);
+        } else if (now - waypointDwellRef.current.get(wp.order)! >= 1000) {
+          console.log(`[WP] wp#${wp.order} MARKED VISITED`);
+          newlyVisited.push(wp.order);
           waypointDwellRef.current.delete(wp.order);
         }
-      });
-      return next;
+      } else {
+        waypointDwellRef.current.delete(wp.order);
+      }
     });
+
+    if (newlyVisited.length > 0) {
+      setVisitedOrders(prev => {
+        const next = new Set(prev);
+        newlyVisited.forEach(order => next.add(order));
+        return next;
+      });
+    }
   }, [droneData.velocity, droneData.altRel]);
 
   const handleSelectSensorMission = async (fpid: string, mid: string) => {

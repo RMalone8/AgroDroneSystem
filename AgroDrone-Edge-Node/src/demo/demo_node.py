@@ -40,6 +40,9 @@ BASE_LON = -71.0656
 
 CRUISE_ALT    = 30.0   # metres
 SPEED_MPS     = 10.0   # metres per second
+PUBLISH_HZ    = 10     # telemetry rate during flight
+STEP_INTERVAL = 1.0 / PUBLISH_HZ   # seconds between publishes
+STEP_DIST     = SPEED_MPS * STEP_INTERVAL  # metres per publish step
 DEG_PER_M_LAT = 1.0 / 111111.0
 
 
@@ -91,7 +94,7 @@ def navigate_to(client, topic, tel, target_lat, target_lon, emergency=None):
 
     heading_rad = math.atan2(east_m, north_m)
     heading_deg = math.degrees(heading_rad) % 360
-    steps       = max(1, int(dist_m / SPEED_MPS))
+    steps       = max(1, int(dist_m / STEP_DIST))
     lat_step    = dlat / steps
     lon_step    = dlon / steps
 
@@ -105,7 +108,7 @@ def navigate_to(client, topic, tel, target_lat, target_lon, emergency=None):
         tel["lat"] += lat_step
         tel["lon"] += lon_step
         publish(client, topic, tel)
-        time.sleep(1.0)
+        time.sleep(STEP_INTERVAL)
 
     # Snap to exact target to avoid floating-point drift
     tel["lat"] = target_lat
@@ -117,17 +120,18 @@ def simulate_flight(client, topic, tel, wp_list, emergency) -> bool:
     print(f"Starting flight — {len(wp_list)} waypoints")
     all_visited = True
 
-    # Phase 1: Takeoff
-    for step in range(1, 6):
+    # Phase 1: Takeoff — 5 s ramp at PUBLISH_HZ
+    TAKEOFF_STEPS = int(5.0 / STEP_INTERVAL)
+    for step in range(1, TAKEOFF_STEPS + 1):
         if emergency.is_set():
             all_visited = False
             break
-        tel["alt_rel"] = (step / 5.0) * CRUISE_ALT
+        tel["alt_rel"] = (step / TAKEOFF_STEPS) * CRUISE_ALT
         tel["vz"]      = -(CRUISE_ALT / 5.0)   # negative = climbing (MAVLink convention)
         tel["vx"]      = 0.0
         tel["vy"]      = 0.0
         publish(client, topic, tel)
-        time.sleep(1.0)
+        time.sleep(STEP_INTERVAL)
     tel["vz"] = 0.0
 
     # Phase 2: Fly each waypoint (skipped entirely on emergency)
@@ -141,8 +145,12 @@ def simulate_flight(client, topic, tel, wp_list, emergency) -> bool:
             if not emergency.is_set():
                 tel["vx"] = 0.0
                 tel["vy"] = 0.0
-                publish(client, topic, tel)
-                time.sleep(1.0)
+                # Hover at waypoint for ~1.2 s at PUBLISH_HZ so the frontend's
+                # 1-second dwell timer has enough messages to fire.
+                hover_steps = int(1.7 / STEP_INTERVAL)
+                for _ in range(hover_steps):
+                    publish(client, topic, tel)
+                    time.sleep(STEP_INTERVAL)
     else:
         all_visited = False
 
@@ -155,13 +163,14 @@ def simulate_flight(client, topic, tel, wp_list, emergency) -> bool:
     tel["vx"] = 0.0
     tel["vy"] = 0.0
 
-    # Phase 4: Land (descend from current altitude to handle mid-takeoff emergencies)
-    start_alt = tel["alt_rel"]
-    for step in range(1, 6):
-        tel["alt_rel"] = start_alt * (1.0 - step / 5.0)
+    # Phase 4: Land — 5 s ramp at PUBLISH_HZ
+    start_alt   = tel["alt_rel"]
+    LAND_STEPS  = int(5.0 / STEP_INTERVAL)
+    for step in range(1, LAND_STEPS + 1):
+        tel["alt_rel"] = start_alt * (1.0 - step / LAND_STEPS)
         tel["vz"]      = start_alt / 5.0   # positive = descending
         publish(client, topic, tel)
-        time.sleep(1.0)
+        time.sleep(STEP_INTERVAL)
     tel["alt_rel"] = 0.0
     tel["vz"]      = 0.0
     tel["battery_remaining"] = max(20, tel["battery_remaining"] - 15)
@@ -184,12 +193,12 @@ def _upload_mock_images(fpid, mid, waypoints_list, device_token, device_id):
     for i, wp in enumerate(waypoints_list):
         img = Image.new("RGB", (320, 240), color=(45, 120, 45))
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=60)
+        img.save(buf, format="PNG")
         buf.seek(0)
 
         try:
             resp = requests.post(
-                f"{BACKEND_URL}/sensor-image",
+                f"{BACKEND_URL}/mosaic",
                 headers=auth_headers,
                 data={
                     "fpid":      fpid,
@@ -201,7 +210,7 @@ def _upload_mock_images(fpid, mid, waypoints_list, device_token, device_id):
                     "altitude":  str(CRUISE_ALT),
                     "timestamp": "",
                 },
-                files={"image": (f"ndvi_{i}.jpg", buf, "image/jpeg")},
+                files={"image": (f"ndvi_{i}.png", buf, "image/png")},
                 timeout=10,
             )
             print(f"Mock image {i} uploaded: {resp.status_code}")

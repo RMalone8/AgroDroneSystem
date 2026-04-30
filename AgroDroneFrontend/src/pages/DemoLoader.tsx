@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useMode } from '../contexts/ModeContext';
+import { useDarkMode } from '../contexts/DarkModeContext';
 import logo from '../assets/agrodronelogo.png';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL as string;
@@ -27,6 +28,7 @@ const STAGE_PROGRESS: Record<Stage, number> = {
 export function DemoLoader() {
   const { login }   = useAuth();
   const { setMode } = useMode();
+  const { darkMode, toggleDarkMode } = useDarkMode();
 
   const [view, setView]           = useState<View>('token_input');
   const [tokenInput, setTokenInput] = useState('');
@@ -123,9 +125,28 @@ export function DemoLoader() {
 
   // ── Token input screen ──────────────────────────────────────────────────────
 
+  const DarkModeToggle = () => (
+    <button
+      onClick={toggleDarkMode}
+      className="absolute top-4 right-4 p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+      aria-label="Toggle dark mode"
+    >
+      {darkMode ? (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m8.66-9h-1M4.34 12h-1m15.07-6.07-.71.71M5.64 18.36l-.71.71m12.02 0-.71-.71M5.64 5.64l-.71-.71M12 7a5 5 0 100 10A5 5 0 0012 7z" />
+        </svg>
+      ) : (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+        </svg>
+      )}
+    </button>
+  );
+
   if (view === 'token_input') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex flex-col items-center justify-center px-4">
+        <DarkModeToggle />
         <div className="w-full max-w-sm">
           <div className="flex flex-col items-center mb-8">
             <img src={logo} alt="AgroDrone logo" className="h-20 w-20 mb-4 drop-shadow-md" />
@@ -176,6 +197,7 @@ export function DemoLoader() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex flex-col items-center justify-center px-4">
+      <DarkModeToggle />
       <div className="w-full max-w-sm text-center">
 
         <div className="flex flex-col items-center mb-10">

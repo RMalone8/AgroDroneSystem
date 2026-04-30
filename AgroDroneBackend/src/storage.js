@@ -23,8 +23,7 @@ export default {
 
         // adjust metadata for new flight plan
         metadata["lastUpdatedAt"] = now;
-        metadata["currentFlightPlan"] = `${content.fpid}`;
-        const fp_path = `data/${user_id}/fp/${metadata["currentFlightPlan"]}.json`;
+        const fp_path = `data/${user_id}/fp/${content.fpid}.json`;
         if (!metadata["flightPlanPaths"].includes(fp_path)) {
             metadata["flightPlanPaths"].push(fp_path);
             metadata["totalFlightPlans"]++;

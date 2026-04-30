@@ -119,18 +119,22 @@ export function AgroDroneMap({ activeTab, droneData, drawRef, initialBaseStation
       ) : null}
 
       {/* Waypoint markers — visible while drone is airborne */}
-      {(droneData.altRel ?? 0) > 5 && waypoints?.map(wp => (
-        <Marker key={wp.order} longitude={wp.lng} latitude={wp.lat} anchor="center">
-          <div style={{
-            width: 10,
-            height: 10,
-            borderRadius: '50%',
-            backgroundColor: visitedOrders?.has(wp.order) ? '#22c55e' : '#9ca3af',
-            border: '1.5px solid white',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-          }} />
-        </Marker>
-      ))}
+      {(droneData.altRel ?? 0) > 5 && waypoints?.map(wp => {
+        const isGreen = visitedOrders?.has(wp.order) ?? false;
+        console.log(`[MAP] wp#${wp.order} rendering as ${isGreen ? 'GREEN' : 'gray'} — visitedOrders size: ${visitedOrders?.size ?? 0}`);
+        return (
+          <Marker key={wp.order} longitude={wp.lng} latitude={wp.lat} anchor="center">
+            <div style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              backgroundColor: isGreen ? '#22c55e' : '#9ca3af',
+              border: '1.5px solid white',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+            }} />
+          </Marker>
+        );
+      })}
 
       {/* Sensor image overlays — visible on sensor tab */}
       {sensorImages?.filter((img, i, arr) => arr.findIndex(x => x.index === img.index) === i).map(img => {

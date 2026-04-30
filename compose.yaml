@@ -110,7 +110,7 @@ services:
       EDGE_NODE_IMAGE:              agrodrone-edge-node:latest
       ORCHESTRATOR_URL:             http://demo-orchestrator:8090
       MAX_ACTIVE_DEMO_SESSIONS:     "10"
-      MAX_SESSIONS_PER_IP_PER_HOUR: "3"
+      MAX_SESSIONS_PER_IP_PER_HOUR: "100"
     depends_on:
       backend:
         condition: service_healthy
